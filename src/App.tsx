@@ -15,27 +15,8 @@ export function App() {
   const xtermRef = useRef<Terminal>(null);
 
   useEffect(() => {
-    createPyodide({}).then((py) => {
+    createPyodide(xtermRef).then((py) => {
       setPyodide(py);
-      py.setStdout({
-        write: (data: Uint8Array) => {
-          // Normalize newlines for terminal
-          const text = normalizeNewlines(new TextDecoder().decode(data));
-          if (xtermRef.current) {
-            xtermRef.current.write(text);
-          }
-          return data.length;
-        },
-      });
-      py.setStderr({
-        write: (data: Uint8Array) => {
-          const text = normalizeNewlines(new TextDecoder().decode(data));
-          if (xtermRef.current) {
-            xtermRef.current.write(`\x1b[31m${text}\x1b[0m`); // Red color for errors
-          }
-          return data.length;
-        },
-      });
     });
   }, []);
 
@@ -49,7 +30,9 @@ export function App() {
         await pyodide.runPythonAsync(code);
       } catch (error) {
         if (xtermRef.current) {
-          xtermRef.current.write(`\x1b[31m${normalizeNewlines(String(error))}\x1b[0m`); // Red color for errors
+          xtermRef.current.write(
+            `\x1b[31m${normalizeNewlines(String(error))}\x1b[0m`
+          ); // Red color for errors
         }
       }
     },
@@ -73,7 +56,7 @@ export function App() {
 
         <div className="absolute top-2 right-2 z-10">
           <button
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded"
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer"
             onClick={() => {
               if (model) {
                 const code = model.getValue();

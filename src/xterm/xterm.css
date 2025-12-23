@@ -23,9 +23,9 @@
   background: var(--highlight);
 }
 
-.xterm .xterm-rows {
+/* .xterm .xterm-rows {
   padding: 8px;
-}
+} */
 
 .xterm .xterm-selection {
   visibility: hidden;

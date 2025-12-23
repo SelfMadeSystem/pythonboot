@@ -20,8 +20,8 @@ export function MonacoEditor({
     createEditorInstance(containerRef.current, (monaco) => {
       const model = monaco.editor.createModel(
         `\
-# Write your Python code here
-print("Hello, Pyodide with Monaco!")`,
+name = input("Enter your name: ")
+print(f"Hello, {name}!")`,
         "python",
         monaco.Uri.file("main.py")
       );
