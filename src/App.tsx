@@ -26,15 +26,18 @@ export function App() {
         console.warn("Pyodide is not loaded yet.");
         return;
       }
-      try {
-        await pyodide.runPythonAsync(code);
-      } catch (error) {
-        if (xtermRef.current) {
-          xtermRef.current.write(
-            `\x1b[31m${normalizeNewlines(String(error))}\x1b[0m`
-          ); // Red color for errors
-        }
+
+      const xterm = xtermRef.current;
+      if (!xterm) {
+        console.warn("XTerm is not available.");
+        return;
       }
+
+      await pyodide.runPythonAsync(code).catch((error) => { // Red color for errors
+        xterm.write(
+          `\x1b[31m${normalizeNewlines(String(error))}\x1b[0m`
+        ); // Red color for errors
+      });
     },
     [pyodide]
   );

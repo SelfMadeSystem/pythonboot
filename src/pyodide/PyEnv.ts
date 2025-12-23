@@ -22,10 +22,7 @@ export function getPyodide(): PyodideAPI | null {
   return pyodide;
 }
 
-function setupPyodide(
-  py: PyodideAPI,
-  xtermRef: RefObject<Terminal | null>
-) {
+function setupPyodide(py: PyodideAPI, xtermRef: RefObject<Terminal | null>) {
   py.setStdout({
     write: (data: Uint8Array) => {
       // Normalize newlines for terminal
@@ -94,8 +91,8 @@ function setupPyodide(
     },
   });
 
-  // Override the built-in input function in Python
   py.runPython(`
+import js
 import xterm
 import asyncio
 
@@ -105,6 +102,16 @@ def xterm_input(prompt=""):
     coro = xterm.readFromXTerm() # Returns a coroutine (Promise converted)
     return asyncio.get_event_loop().run_until_complete(coro)
 
+def xterm_clear():
+    xterm_instance = xterm.getXTerm()
+    if xterm_instance:
+        xterm_instance.clear()
+
+def wait_for_js_promise(promise):
+    return asyncio.get_event_loop().run_until_complete(promise)
+
 __builtins__.input = xterm_input
+__builtins__.clear = xterm_clear
+js.wait_for_js_promise = wait_for_js_promise
 `);
 }
