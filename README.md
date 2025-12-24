@@ -1,21 +1,24 @@
-# bun-react-tailwind-template
+# pythonBoot
 
-To install dependencies:
+An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor and xterm.js.
 
-```bash
-bun install
-```
+## Features
 
-To start a development server:
+- [x] Write and execute Python code directly in your browser.
+- [x] Step through your code with a built-in debugger.
+- [x] Syntax highlighting
+- [ ] Code autocompletion
+- [ ] Variable inspection
+- [x] Terminal input/output
+  - stdout/stderr works, stdin partially works (only `input()` function)
+- [ ] File system access
+- [ ] Package management (might work, just haven't tested it)
+- [ ] Canvas support (primarily for turtle graphics)
+- [ ] Custom websites with embedded Python code
+- [ ] Persistence
+- [ ] Save and load code snippets
+- [ ] Share code snippets via URL
+- [ ] Theme support (light/dark mode, currently only dark mode is available)
+- [ ] Documentation
 
-```bash
-bun dev
-```
-
-To run for production:
-
-```bash
-bun start
-```
-
-This project was created using `bun init` in bun v1.3.5. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+Mobile support probably won't be a thing due to Monaco Editor's limitations on mobile devices.
