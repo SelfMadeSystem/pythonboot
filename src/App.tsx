@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./index.css";
-import { MonacoEditor } from "./monaco/MonacoEditor";
+import { MonacoEditor, type HighlightRange } from "./monaco/MonacoEditor";
 import { XTerminal } from "./xterm/XTerminal";
 import type { PyodideAPI } from "pyodide";
-import { createPyodide } from "./pyodide/PyEnv";
+import { createPyodide, debugPythonCode, runPythonCode } from "./pyodide/PyEnv";
 import type * as m from "monaco-editor";
 import type { Terminal } from "xterm";
 import { normalizeNewlines } from "./utils";
@@ -12,6 +12,8 @@ export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
   const [split, setSplit] = useState(0.5);
   const [pyodide, setPyodide] = useState<PyodideAPI | null>(null);
+  const [debugCb, setDebugCb] = useState<(() => void) | null>(null);
+  const [highlight, setHighlight] = useState<HighlightRange | null>(null);
   const xtermRef = useRef<Terminal>(null);
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function App() {
   }, []);
 
   const runCode = useCallback(
-    async (code: string) => {
+    async (model: m.editor.ITextModel, debug: boolean) => {
       if (!pyodide) {
         console.warn("Pyodide is not loaded yet.");
         return;
@@ -32,12 +34,110 @@ export function App() {
         console.warn("XTerm is not available.");
         return;
       }
+      const code = model.getValue();
+      const filename = model.uri.path || "script.py";
 
-      await pyodide.runPythonAsync(code).catch((error) => { // Red color for errors
-        xterm.write(
-          `\x1b[31m${normalizeNewlines(String(error))}\x1b[0m`
-        ); // Red color for errors
-      });
+      const lines = code.split("\n").length;
+
+      const promise = debug
+        ? debugPythonCode(code, filename, (frame, event, arg) => {
+            const line = frame.f_lineno;
+            if (line > lines || line < 1) {
+              return Promise.resolve();
+            }
+            const fname = frame.f_code.co_filename;
+            const func = frame.f_code.co_name;
+            if (event === "opcode") {
+              const code = frame.f_code.co_code;
+              const lasti = frame.f_lasti;
+              const positions = [...frame.f_code.co_positions()];
+
+              const instrIndex = Math.floor(lasti / 2);
+              const arg = frame.f_code.co_code[lasti + 1];
+
+              const [startLine, endLine, startCol, endCol] = positions[
+                instrIndex
+              ] || [null, null, null, null];
+
+              let loadedValue = undefined;
+
+              const opcode = code[lasti];
+              const opname = pyodide.pyimport("dis").opname[opcode];
+
+              switch (opname) {
+                case "LOAD_CONST":
+                  loadedValue = frame.f_code.co_consts[arg];
+                  break;
+                case "LOAD_NAME":
+                  const name = frame.f_code.co_names[arg];
+                  if (name in frame.f_locals) {
+                    loadedValue = frame.f_locals[name];
+                  } else if (name in frame.f_globals) {
+                    loadedValue = frame.f_globals[name];
+                  } else if (name in frame.f_builtins) {
+                    loadedValue = frame.f_builtins[name];
+                  }
+                  break;
+              }
+
+              console.log(`[DEBUG TRACE] opcode: ${opname} (${opcode})`, {
+                line,
+                fname,
+                func,
+                instrIndex,
+                startLine,
+                startCol,
+                endLine,
+                endCol,
+                arg,
+                loadedValue,
+              });
+              setHighlight({
+                startLine: startLine || line,
+                endLine: endLine || line,
+                startColumn: (startCol || 0) + 1,
+                endColumn: (endCol || 0) + 1,
+              });
+              return new Promise<void>((resolve) => {
+                setDebugCb(() => () => {
+                  resolve();
+                });
+              });
+            }
+            console.log(
+              `[DEBUG TRACE] event: ${event}, line: ${line}, filename: ${fname}, func: ${func}`
+            );
+            setHighlight({
+              startLine: line,
+              endLine: line,
+            });
+            return new Promise<void>((resolve) => {
+              setDebugCb(() => () => {
+                resolve();
+              });
+            });
+          })
+        : runPythonCode(code, filename);
+      try {
+        await promise.catch((error) => {
+          const xterm = xtermRef.current;
+          if (!xterm) {
+            console.warn("XTerm is not available.");
+            return;
+          }
+          let output = "";
+          if (error && typeof error.message === "string") {
+            // Filter out Pyodide internals and JS wrapper
+            output = error.message;
+          } else {
+            output = String(error);
+          }
+          xterm.write(`\x1b[31m${normalizeNewlines(output)}\x1b[0m`);
+        });
+      } finally {
+        setDebugCb(null);
+        setHighlight(null);
+      }
     },
     [pyodide]
   );
@@ -55,21 +155,30 @@ export function App() {
           height: `${split * 100}vh`,
         }}
       >
-        <MonacoEditor model={model} setModel={setModel} />
+        <MonacoEditor highlight={highlight} model={model} setModel={setModel} />
 
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2 z-10 flex gap-2">
           <button
             className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer"
             onClick={() => {
-              if (model) {
-                const code = model.getValue();
-                runCode(code);
-              } else {
-                console.warn("No model available to run code from.");
-              }
+              if (!model) return;
+              runCode(model, false);
             }}
           >
             Run
+          </button>
+          <button
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer"
+            onClick={() => {
+              if (debugCb) {
+                debugCb();
+                return;
+              }
+              if (!model) return;
+              runCode(model, true);
+            }}
+          >
+            {debugCb ? "Continue" : "Debug"}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { normalizeNewlines } from "@/utils";
 import { loadPyodide, type PyodideAPI } from "pyodide";
+import type { PyProxy } from "pyodide/ffi";
 import type { RefObject } from "react";
 import type { Terminal } from "xterm";
 
@@ -114,4 +115,73 @@ __builtins__.input = xterm_input
 __builtins__.clear = xterm_clear
 js.wait_for_js_promise = wait_for_js_promise
 `);
+}
+
+export async function runPythonCode(
+  code: string,
+  filename: string
+): Promise<void> {
+  const py = getPyodide();
+  if (!py) {
+    throw new Error("Pyodide is not loaded.");
+  }
+  await py.runPythonAsync(code, { filename });
+}
+
+type DebugCallback = (frame: PyProxy, event: string, arg: any) => Promise<void>;
+
+async function setupDebugging(
+  py: PyodideAPI,
+  filename: string,
+  cb: DebugCallback
+) {
+  await py.runPythonAsync(
+    `
+import inspect
+import js
+import sys
+
+jscb = js__cb
+
+def trace_cb(frame, event, arg):
+    global jscb, trace_cb
+    frame.f_trace_opcodes = True
+    # if event != "line":
+    #     return trace_cb
+    line_no = frame.f_lineno
+    filename = frame.f_code.co_filename
+    # Only pause for the target script
+    if filename != "${filename}":
+        return trace_cb
+    js.wait_for_js_promise(jscb(frame, event, arg))
+    return trace_cb
+
+sys.settrace(trace_cb)
+`,
+    {
+      locals: py.toPy({ js__cb: cb }),
+    }
+  );
+}
+
+async function clearDebugging(py: PyodideAPI) {
+  py.pyimport("sys").settrace(null);
+}
+
+export async function debugPythonCode(
+  code: string,
+  filename: string,
+  pauseCallback: DebugCallback
+): Promise<void> {
+  const py = getPyodide();
+  if (!py) {
+    throw new Error("Pyodide is not loaded.");
+  }
+
+  try {
+    await setupDebugging(py, filename, pauseCallback);
+    await py.runPythonAsync(code + "\na = 1", { filename });
+  } finally {
+    await clearDebugging(py);
+  }
 }
