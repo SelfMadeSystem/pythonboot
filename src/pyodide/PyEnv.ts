@@ -68,23 +68,96 @@ function setupPyodide(py: PyodideAPI, xtermRef: RefObject<Terminal | null>) {
       xterm.options.cursorBlink = true;
       xterm.focus();
 
-      return new Promise<string>((resolve) => {
+      return new Promise<string | Error>((resolve, reject) => {
         let input = "";
+        // 0 is at the end of the line, 1 is before the last character, etc.
+        let cursor = 0;
         const onData = (data: string) => {
-          if (data === "\r") {
-            xterm.write("\r\n");
-            offData.dispose();
-            xterm.options.cursorBlink = false;
-            resolve(input);
-          } else if (data === "\u007F") {
-            // Handle backspace
-            if (input.length > 0) {
-              input = input.slice(0, -1);
-              xterm.write("\b \b");
-            }
-          } else {
-            input += data;
-            xterm.write(data);
+          switch (data) {
+            case "\r":
+            case "\n":
+              xterm.write("\r\n");
+              offData.dispose();
+              xterm.options.cursorBlink = false;
+              resolve(input);
+              break;
+            case "\u007F":
+              // Handle backspace
+              if (input.length > 0 && cursor > 0) {
+                // Remove character before the cursor
+                const beforeCursor = input.slice(0, input.length - cursor - 1);
+                const afterCursor = input.slice(input.length - cursor);
+                input = beforeCursor + afterCursor;
+                xterm.write("\b \b");
+                xterm.write("\x1b[s"); // Save cursor position
+                xterm.write("\x1b[K"); // Clear to end of line
+                xterm.write(afterCursor);
+                xterm.write("\x1b[u"); // Restore cursor position
+              }
+              break;
+            case "\x1b[3~":
+              // Handle Delete key
+              if (input.length > 0 && cursor < input.length) {
+                // Remove character at the cursor
+                const beforeCursor = input.slice(0, input.length - cursor);
+                const afterCursor = input.slice(input.length - cursor + 1);
+                input = beforeCursor + afterCursor;
+                // Redraw the line from the cursor position
+                xterm.write("\x1b[s"); // Save cursor position
+                xterm.write("\x1b[K"); // Clear to end of line
+                xterm.write(afterCursor);
+                xterm.write("\x1b[u"); // Restore cursor position
+                cursor--;
+              }
+              break;
+            case "\u0003":
+              // Handle Ctrl+C
+              offData.dispose();
+              xterm.write("^C\r\n");
+              xterm.options.cursorBlink = false;
+              resolve(new Error("KeyboardInterrupt"));
+              break;
+            case "\u0004":
+              // Handle Ctrl+D
+              offData.dispose();
+              xterm.write("\r\n");
+              xterm.options.cursorBlink = false;
+              resolve(new Error("EOFError"));
+              break;
+            case "\x1b[D":
+              // Left arrow
+              if (cursor < input.length) {
+                xterm.write("\x1b[D");
+                cursor++;
+              }
+              break;
+            case "\x1b[C":
+              // Right arrow
+              if (cursor > 0) {
+                xterm.write("\x1b[C");
+                cursor--;
+              }
+              break;
+            case "\x1b[A":
+            case "\x1b[B":
+              // Up and Down arrows - ignore
+              break;
+            default:
+              // Ignore other control characters
+              if (data < " " || data === "\x7F") {
+                return;
+              }
+              // Regular character input
+              input =
+                input.slice(0, input.length - cursor) +
+                data +
+                input.slice(input.length - cursor);
+              // Redraw the line from the cursor position
+              xterm.write("\x1b[s"); // Save cursor position
+              xterm.write(input.slice(input.length - cursor - data.length));
+              xterm.write("\x1b[u"); // Restore cursor position
+              xterm.write(`\x1b[C`); // Move cursor to correct position
+              break;
           }
         };
         const offData = xterm.onData(onData);
@@ -96,12 +169,26 @@ function setupPyodide(py: PyodideAPI, xtermRef: RefObject<Terminal | null>) {
 import js
 import xterm
 import asyncio
+import pyodide
+import sys
 
-def xterm_input(prompt=""):
-    if prompt:
-        print(prompt, end="", flush=True)
-    coro = xterm.readFromXTerm() # Returns a coroutine (Promise converted)
-    return asyncio.get_event_loop().run_until_complete(coro)
+class XTermInput:
+    def __call__(self, prompt=""):
+        if prompt:
+            print(prompt, end="", flush=True)
+        coro = xterm.readFromXTerm()
+        result = asyncio.get_event_loop().run_until_complete(coro)
+        if isinstance(result, str):
+            return result
+        if "KeyboardInterrupt" in result.message:
+            raise KeyboardInterrupt() from None
+        elif "EOFError" in result.message:
+            raise EOFError() from None
+        raise result from None
+    def __repr__(self):
+        return "<built-in function input>"
+    def __str__(self):
+        return "<built-in function input>"
 
 def xterm_clear():
     xterm_instance = xterm.getXTerm()
@@ -111,7 +198,7 @@ def xterm_clear():
 def wait_for_js_promise(promise):
     return asyncio.get_event_loop().run_until_complete(promise)
 
-__builtins__.input = xterm_input
+__builtins__.input = XTermInput()
 __builtins__.clear = xterm_clear
 js.wait_for_js_promise = wait_for_js_promise
 `);
