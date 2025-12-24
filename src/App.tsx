@@ -6,7 +6,7 @@ import type { PyodideAPI } from "pyodide";
 import { createPyodide, debugPythonCode, runPythonCode } from "./pyodide/PyEnv";
 import type * as m from "monaco-editor";
 import type { Terminal } from "xterm";
-import { normalizeNewlines } from "./utils";
+import { normalizeNewlines, SYM_NIL } from "./utils";
 
 export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
@@ -15,6 +15,10 @@ export function App() {
   const [debugCb, setDebugCb] = useState<(() => void) | null>(null);
   const highlightRef = useRef<HighlightRange>(null);
   const [highlight, setHighlight] = useState<HighlightRange | null>(null);
+  const [frameVars, setFrameVars] = useState<Record<string, unknown> | null>(
+    null
+  );
+  const [loadedValue, setLoadedValue] = useState<unknown>(SYM_NIL);
   const xtermRef = useRef<Terminal>(null);
 
   useEffect(() => {
@@ -41,99 +45,94 @@ export function App() {
       const lines = code.split("\n").length;
 
       const promise = debug
-        ? debugPythonCode(code, filename, (frame, event, arg) => {
+        ? debugPythonCode(code, filename, (frame, event) => {
             const line = frame.f_lineno;
             if (line > lines || line < 1) {
               return Promise.resolve();
             }
             const fname = frame.f_code.co_filename;
             const func = frame.f_code.co_name;
-            if (event === "opcode") {
-              const code = frame.f_code.co_code;
-              const lasti = frame.f_lasti;
-              const positions = [...frame.f_code.co_positions()];
-
-              const instrIndex = Math.floor(lasti / 2);
-              const arg = frame.f_code.co_code[lasti + 1];
-
-              const [startLine, endLine, startCol, endCol] = positions[
-                instrIndex
-              ] || [null, null, null, null];
-
-              let loadedValue = undefined;
-
-              const opcode = code[lasti];
-              const opname = pyodide.pyimport("dis").opname[opcode];
-
-              switch (opname) {
-                // opcodes we don't need to handle
-                case "NOP":
-                case "POP_TOP":
-                case "RETURN_VALUE":
-                case "PUSH_NULL":
-                  return Promise.resolve();
-                case "LOAD_CONST":
-                  loadedValue = frame.f_code.co_consts[arg];
-                  break;
-                case "LOAD_NAME":
-                  const name = frame.f_code.co_names[arg];
-                  if (name in frame.f_locals) {
-                    loadedValue = frame.f_locals[name];
-                  } else if (name in frame.f_globals) {
-                    loadedValue = frame.f_globals[name];
-                  } else if (name in frame.f_builtins) {
-                    loadedValue = frame.f_builtins[name];
-                  }
-                  break;
-              }
-
-              const newHighlight: HighlightRange = {
-                startLine: startLine || line,
-                endLine: endLine || line,
-                startColumn: (startCol || 0) + 1,
-                endColumn: (endCol || 0) + 1,
-              };
-
-              // if the new highlight is the same as the current one, just continue
-              if (
-                highlightRef.current &&
-                newHighlight.startLine === highlightRef.current.startLine &&
-                newHighlight.endLine === highlightRef.current.endLine &&
-                "startColumn" in highlightRef.current &&
-                newHighlight.startColumn === highlightRef.current.startColumn &&
-                newHighlight.endColumn === highlightRef.current.endColumn
-              ) {
-                return Promise.resolve();
-              }
-
-              console.log(`[DEBUG TRACE] opcode: ${opname} (${opcode})`, {
-                line,
-                fname,
-                func,
-                instrIndex,
-                startLine,
-                startCol,
-                endLine,
-                endCol,
-                arg,
-                loadedValue,
-              });
-              setHighlight((highlightRef.current = newHighlight));
-              return new Promise<void>((resolve) => {
-                setDebugCb(() => () => {
-                  resolve();
-                });
-              });
+            if (event !== "opcode") {
+              console.log(
+                `[DEBUG TRACE] event: ${event}, line: ${line}, filename: ${fname}, func: ${func}`
+              );
+              return Promise.resolve();
             }
-            console.log(
-              `[DEBUG TRACE] event: ${event}, line: ${line}, filename: ${fname}, func: ${func}`
-            );
-            setHighlight(
-              (highlightRef.current = {
-                startLine: line,
-                endLine: line,
-              })
-            );
+
+            const code = frame.f_code.co_code;
+            const lasti = frame.f_lasti;
+            const positions = [...frame.f_code.co_positions()];
+
+            const instrIndex = Math.floor(lasti / 2);
+            const arg = frame.f_code.co_code[lasti + 1];
+
+            const [startLine, endLine, startCol, endCol] = positions[
+              instrIndex
+            ] || [null, null, null, null];
+
+            let loadedValue: unknown = SYM_NIL;
+
+            const opcode = code[lasti];
+            const opname = pyodide.pyimport("dis").opname[opcode];
+
+            switch (opname) {
+              // opcodes we don't need to handle
+              case "NOP":
+              case "POP_TOP":
+              case "RETURN_VALUE":
+              case "PUSH_NULL":
+                return Promise.resolve();
+              case "LOAD_CONST":
+                loadedValue = frame.f_code.co_consts[arg];
+                break;
+              case "LOAD_NAME":
+                const name = frame.f_code.co_names[arg];
+                if (name in frame.f_locals) {
+                  loadedValue = frame.f_locals[name];
+                } else if (name in frame.f_globals) {
+                  loadedValue = frame.f_globals[name];
+                } else if (name in frame.f_builtins) {
+                  loadedValue = frame.f_builtins[name];
+                }
+                break;
+            }
+
+            console.log(`[DEBUG TRACE] opcode: ${opname} (${opcode})`, {
+              line,
+              fname,
+              func,
+              instrIndex,
+              startLine,
+              startCol,
+              endLine,
+              endCol,
+              arg,
+              loadedValue,
+            });
+
+            const newHighlight: HighlightRange = {
+              startLine: startLine || line,
+              endLine: endLine || line,
+              startColumn: (startCol || 0) + 1,
+              endColumn: (endCol || 0) + 1,
+            };
+
+            // if the new highlight is the same as the current one, just continue
+            if (
+              highlightRef.current &&
+              newHighlight.startLine === highlightRef.current.startLine &&
+              newHighlight.endLine === highlightRef.current.endLine &&
+              "startColumn" in highlightRef.current &&
+              newHighlight.startColumn === highlightRef.current.startColumn &&
+              newHighlight.endColumn === highlightRef.current.endColumn
+            ) {
+              return Promise.resolve();
+            }
+
+            setFrameVars(frame.f_locals.toJs());
+            setLoadedValue(() => loadedValue);
+            setHighlight((highlightRef.current = newHighlight));
+            // return Promise.resolve();
             return new Promise<void>((resolve) => {
               setDebugCb(() => () => {
                 resolve();
@@ -160,6 +159,8 @@ export function App() {
       } finally {
         setDebugCb(null);
         setHighlight((highlightRef.current = null));
+        setFrameVars(null);
+        setLoadedValue(SYM_NIL);
       }
     },
     [pyodide]
@@ -178,7 +179,13 @@ export function App() {
           height: `${split * 100}vh`,
         }}
       >
-        <MonacoEditor highlight={highlight} model={model} setModel={setModel} />
+        <MonacoEditor
+          highlight={highlight}
+          frameVars={frameVars}
+          loadedValue={loadedValue}
+          model={model}
+          setModel={setModel}
+        />
 
         <div className="absolute top-2 right-2 z-10 flex gap-2">
           <button

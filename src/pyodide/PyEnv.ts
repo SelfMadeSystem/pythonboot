@@ -165,7 +165,7 @@ sys.settrace(trace_cb)
 }
 
 async function clearDebugging(py: PyodideAPI) {
-  py.pyimport("sys").settrace(null);
+  py.pyimport("sys").settrace(undefined);
 }
 
 export async function debugPythonCode(

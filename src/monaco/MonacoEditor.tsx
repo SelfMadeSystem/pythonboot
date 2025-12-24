@@ -2,23 +2,31 @@ import type * as m from "monaco-editor";
 import { useEffect, useRef, useState } from "react";
 import { createEditorInstance, getMonacoInstance } from "./MonacoStore";
 import "./monaco.css";
+import { SYM_NIL } from "@/utils";
 
-export type HighlightRange = {
-  startLine: number;
-  endLine: number;
-} | {
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-} | null;
+export type HighlightRange =
+  | {
+      startLine: number;
+      endLine: number;
+    }
+  | {
+      startLine: number;
+      startColumn: number;
+      endLine: number;
+      endColumn: number;
+    }
+  | null;
 
 export function MonacoEditor({
   highlight,
+  frameVars,
+  loadedValue,
   model,
   setModel,
 }: {
   highlight: HighlightRange;
+  frameVars: Record<string, unknown> | null;
+  loadedValue: unknown;
   model: m.editor.ITextModel | null;
   setModel: (model: m.editor.ITextModel) => void;
 }) {
@@ -79,6 +87,64 @@ print(f"Hello, {name}!")`,
       },
     ]);
   }, [highlight, editor, model]);
+
+  const hoverProviderDisposable = useRef<{ dispose: () => void } | null>(null);
+
+  useEffect(() => {
+    const monaco = getMonacoInstance();
+    if (!editor || !model || !monaco) return;
+
+    // Clean up previous hover provider
+    hoverProviderDisposable.current?.dispose();
+
+    if (
+      highlight === null ||
+      loadedValue === SYM_NIL ||
+      loadedValue === null ||
+      loadedValue === undefined
+    ) {
+      return;
+    }
+
+    // Register hover provider for the highlighted range
+    hoverProviderDisposable.current = monaco.languages.registerHoverProvider(
+      model.getLanguageId(),
+      {
+        provideHover: function (model, position) {
+          // Check if position is within the highlight range
+          const inRange =
+            position.lineNumber >= highlight.startLine &&
+            position.lineNumber <= highlight.endLine &&
+            (!("startColumn" in highlight) ||
+              ((position.lineNumber > highlight.startLine ||
+                position.column >= highlight.startColumn) &&
+                (position.lineNumber < highlight.endLine ||
+                  position.column <= highlight.endColumn)));
+
+          if (inRange) {
+            return {
+              range: new monaco.Range(
+                highlight.startLine,
+                "startColumn" in highlight ? highlight.startColumn : 1,
+                highlight.endLine,
+                "endColumn" in highlight ? highlight.endColumn : 1
+              ),
+              contents: [
+                {
+                  value: `**Value:** \`${String(loadedValue)}\``,
+                },
+              ],
+            };
+          }
+          return null;
+        },
+      }
+    );
+
+    return () => {
+      hoverProviderDisposable.current?.dispose();
+    };
+  }, [highlight, loadedValue, editor, model]);
 
   return <div className="w-full h-full" ref={containerRef} />;
 }
