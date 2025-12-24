@@ -1,3 +1,4 @@
 .current-execution-line {
   background-color: rgba(255, 215, 0, 0.3);
+  border: 1px solid gold;
 }
