@@ -13,6 +13,7 @@ export function App() {
   const [split, setSplit] = useState(0.5);
   const [pyodide, setPyodide] = useState<PyodideAPI | null>(null);
   const [debugCb, setDebugCb] = useState<(() => void) | null>(null);
+  const highlightRef = useRef<HighlightRange>(null);
   const [highlight, setHighlight] = useState<HighlightRange | null>(null);
   const xtermRef = useRef<Terminal>(null);
 
@@ -65,6 +66,12 @@ export function App() {
               const opname = pyodide.pyimport("dis").opname[opcode];
 
               switch (opname) {
+                // opcodes we don't need to handle
+                case "NOP":
+                case "POP_TOP":
+                case "RETURN_VALUE":
+                case "PUSH_NULL":
+                  return Promise.resolve();
                 case "LOAD_CONST":
                   loadedValue = frame.f_code.co_consts[arg];
                   break;
@@ -80,6 +87,25 @@ export function App() {
                   break;
               }
 
+              const newHighlight: HighlightRange = {
+                startLine: startLine || line,
+                endLine: endLine || line,
+                startColumn: (startCol || 0) + 1,
+                endColumn: (endCol || 0) + 1,
+              };
+
+              // if the new highlight is the same as the current one, just continue
+              if (
+                highlightRef.current &&
+                newHighlight.startLine === highlightRef.current.startLine &&
+                newHighlight.endLine === highlightRef.current.endLine &&
+                "startColumn" in highlightRef.current &&
+                newHighlight.startColumn === highlightRef.current.startColumn &&
+                newHighlight.endColumn === highlightRef.current.endColumn
+              ) {
+                return Promise.resolve();
+              }
+
               console.log(`[DEBUG TRACE] opcode: ${opname} (${opcode})`, {
                 line,
                 fname,
@@ -92,12 +118,7 @@ export function App() {
                 arg,
                 loadedValue,
               });
-              setHighlight({
-                startLine: startLine || line,
-                endLine: endLine || line,
-                startColumn: (startCol || 0) + 1,
-                endColumn: (endCol || 0) + 1,
-              });
+              setHighlight((highlightRef.current = newHighlight));
               return new Promise<void>((resolve) => {
                 setDebugCb(() => () => {
                   resolve();
@@ -107,10 +128,12 @@ export function App() {
             console.log(
               `[DEBUG TRACE] event: ${event}, line: ${line}, filename: ${fname}, func: ${func}`
             );
-            setHighlight({
-              startLine: line,
-              endLine: line,
-            });
+            setHighlight(
+              (highlightRef.current = {
+                startLine: line,
+                endLine: line,
+              })
+            );
             return new Promise<void>((resolve) => {
               setDebugCb(() => () => {
                 resolve();
@@ -136,7 +159,7 @@ export function App() {
         });
       } finally {
         setDebugCb(null);
-        setHighlight(null);
+        setHighlight((highlightRef.current = null));
       }
     },
     [pyodide]
