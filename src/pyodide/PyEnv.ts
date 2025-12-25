@@ -88,7 +88,7 @@ async function setupPyodide(
               break;
             case "\u007F":
               // Handle backspace
-              if (input.length > 0 && cursor > 0) {
+              if (input.length > 0 && cursor < input.length) {
                 // Remove character before the cursor
                 const beforeCursor = input.slice(0, input.length - cursor - 1);
                 const afterCursor = input.slice(input.length - cursor);
@@ -102,7 +102,7 @@ async function setupPyodide(
               break;
             case "\x1b[3~":
               // Handle Delete key
-              if (input.length > 0 && cursor < input.length) {
+              if (input.length > 0 && cursor > 0) {
                 // Remove character at the cursor
                 const beforeCursor = input.slice(0, input.length - cursor);
                 const afterCursor = input.slice(input.length - cursor + 1);
@@ -211,8 +211,8 @@ All Rights Reserved.
 
 {copyright}"""
 __builtins__.credits = f"""    Thanks to Pyodide for making this possible.
-    Thanks to UdeM's DIRO for their godawful online Python env which
-    inspired me to make this project.
+    Thanks to UdeM's DIRO for their online Python learning environment
+    which inspired me to make this project.
 {credits}"""
 __builtins__.license = f"""pythonBoot is licensed under the MIT License.
 
