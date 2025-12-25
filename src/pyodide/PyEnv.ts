@@ -4,8 +4,29 @@ import type { PyProxy } from "pyodide/ffi";
 import type { RefObject } from "react";
 import type { Terminal } from "xterm";
 import astUtilsSrc from "./astUtils.py" with { type: "text" };
+import inputsSrc from "./inputs.py" with { type: "text" };
 
 let pyodide: PyodideAPI | null = null;
+
+async function runPySrcOrFetch(
+  src: string,
+  options?: {
+    globals?: PyProxy;
+    locals?: PyProxy;
+    filename?: string;
+  }
+): Promise<unknown> {
+  const pyodide = getPyodide();
+  if (!pyodide) {
+    throw new Error("Pyodide is not loaded.");
+  }
+  if (src.startsWith("/")) {
+    const res = await fetch(src);
+    const code = await res.text();
+    return pyodide.runPython(code, options);
+  }
+  return pyodide.runPython(src, options);
+}
 
 export async function createPyodide(
   xtermRef: RefObject<Terminal | null>
@@ -56,6 +77,8 @@ async function setupPyodide(
     },
   });
 
+  let rejectPrevRead: (() => void) | null = null;
+
   py.registerJsModule("xterm", {
     getXTerm: () => {
       return xtermRef.current;
@@ -66,17 +89,27 @@ async function setupPyodide(
       }
     },
     readFromXTerm: async () => {
+      if (rejectPrevRead) {
+        rejectPrevRead();
+      }
+
       const xterm = xtermRef.current;
       if (!xterm) return "";
-
       xterm.options.cursorBlink = true;
       xterm.focus();
 
-      // FIXME: this actually doesn't work properly
-      return new Promise<string | Error>((resolve, reject) => {
+      return new Promise<string | Error>((resolve) => {
+        rejectPrevRead = () => {
+          rejectPrevRead = null;
+          xterm.options.cursorBlink = false;
+          offData.dispose();
+          resolve(new Error("Input interrupted"));
+        };
+
         let input = "";
         // 0 is at the end of the line, 1 is before the last character, etc.
         let cursor = 0;
+
         const onData = (data: string) => {
           switch (data) {
             case "\r":
@@ -147,6 +180,22 @@ async function setupPyodide(
             case "\x1b[B":
               // Up and Down arrows - ignore
               break;
+            case "\x1b[H":
+            case "\x1b[1~":
+              // Home key - move cursor to start of line
+              while (cursor < input.length) {
+                xterm.write("\x1b[D");
+                cursor++;
+              }
+              break;
+            case "\x1b[F":
+            case "\x1b[4~":
+              // End key - move cursor to end of line
+              while (cursor > 0) {
+                xterm.write("\x1b[C");
+                cursor--;
+              }
+              break;
             default:
               // Ignore other control characters
               if (data < " " || data === "\x7F") {
@@ -170,80 +219,17 @@ async function setupPyodide(
     },
   });
 
-  py.runPython(
-    `
-import js
-import xterm
-import asyncio
-import pyodide
-import sys
+  await runPySrcOrFetch(inputsSrc, {
+    globals: py.toPy({
+      ...py.globals.toJs(),
+    }),
+  });
 
-class XTermInput:
-    def __call__(self, prompt=""):
-        if prompt:
-            print(prompt, end="", flush=True)
-        coro = xterm.readFromXTerm()
-        result = asyncio.get_event_loop().run_until_complete(coro)
-        if isinstance(result, str):
-            return result
-        if "KeyboardInterrupt" in result.message:
-            raise KeyboardInterrupt() from None
-        elif "EOFError" in result.message:
-            raise EOFError() from None
-        raise result from None
-    def __repr__(self):
-        return "<built-in function input>"
-    def __str__(self):
-        return "<built-in function input>"
-
-def xterm_clear():
-    xterm_instance = xterm.getXTerm()
-    if xterm_instance:
-        xterm_instance.clear()
-
-def wait_for_js_promise(promise):
-    return asyncio.get_event_loop().run_until_complete(promise)
-
-__builtins__.input = XTermInput()
-__builtins__.clear = xterm_clear
-__builtins__.copyright = f"""Copyright (c) 2025 Shoghi Simon
-All Rights Reserved.
-
-{copyright}"""
-__builtins__.credits = f"""    Thanks to Pyodide for making this possible.
-    Thanks to UdeM's DIRO for their online Python learning environment
-    which inspired me to make this project.
-{credits}"""
-__builtins__.license = f"""pythonBoot is licensed under the MIT License.
-
-See https://opensource.org/licenses/MIT for more information.
-
-Python is a trademark of the Python Software Foundation.
-
-{license}"""
-js.wait_for_js_promise = wait_for_js_promise
-`,
-    {
-      globals: py.toPy({
-        ...py.globals.toJs(),
-      }),
-    }
-  );
-
-  if (astUtilsSrc.startsWith("/")) {
-    const src = await fetch(astUtilsSrc).then((res) => res.text());
-    setupHintingFunc = py.runPython(src, {
-      globals: py.toPy({
-        ...py.globals.toJs(),
-      }),
-    });
-  } else {
-    setupHintingFunc = py.runPython(astUtilsSrc, {
-      globals: py.toPy({
-        ...py.globals.toJs(),
-      }),
-    });
-  }
+  setupHintingFunc = (await runPySrcOrFetch(astUtilsSrc, {
+    globals: py.toPy({
+      ...py.globals.toJs(),
+    }),
+  })) as (source: string) => HintingFunc;
 }
 
 type HintingFunc = (
