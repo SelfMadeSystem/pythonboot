@@ -8,6 +8,7 @@ import type * as m from "monaco-editor";
 import type { Terminal } from "xterm";
 import { normalizeNewlines, SYM_NIL } from "./utils";
 import type { PyProxy } from "pyodide/ffi";
+import { syncMonacoToPyodide } from "./monaco/MonacoStore";
 
 export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
@@ -38,6 +39,9 @@ export function App() {
         console.warn("XTerm is not available.");
         return;
       }
+
+      syncMonacoToPyodide();
+
       const code = model.getValue();
       const filename = model.uri.path || "script.py";
 

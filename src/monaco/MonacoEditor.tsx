@@ -46,12 +46,21 @@ export function MonacoEditor({
     createEditorInstance(containerRef.current, () => {
       return {
         rulers: [80],
-        automaticLayout: true,
+        // automaticLayout: true,
         theme: "vs-dark",
       };
     }).then((ed) => {
       setEditor(ed);
       ed.setModel(null);
+      const ro = new window.ResizeObserver(() => {
+        requestAnimationFrame(() => {
+          ed.layout({
+            width: containerRef.current!.clientWidth,
+            height: containerRef.current!.clientHeight,
+          });
+        });
+      });
+      ro.observe(containerRef.current!);
     });
   }, [containerRef, editor]);
 

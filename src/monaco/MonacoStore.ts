@@ -1,5 +1,6 @@
 import type * as m from "monaco-editor";
 import mLoader from "@monaco-editor/loader";
+import { getPyodide } from "@/pyodide/PyEnv";
 
 mLoader.config({
   paths: {
@@ -39,4 +40,26 @@ export async function createEditorInstance(
 
 export function getEditorInstance(): m.editor.IStandaloneCodeEditor | null {
   return editorInstance;
+}
+
+export function syncMonacoToPyodide() {
+  const monaco = getMonacoInstance();
+  if (!monaco) return;
+
+  const pyodide = getPyodide();
+  if (!pyodide) return;
+
+  const models = monaco.editor.getModels();
+
+  for (const model of models) {
+    const path = model.uri.fsPath;
+    const content = model.getValue();
+
+    if (pyodide.FS.analyzePath(path).exists) {
+      pyodide.FS.unlink(path);
+    }
+
+    pyodide.FS.writeFile(path, content);
+    pyodide.FS.chmod(path, 0o444); // .r--r--r--
+  }
 }
