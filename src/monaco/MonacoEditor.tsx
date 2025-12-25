@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { createEditorInstance, getMonacoInstance } from "./MonacoStore";
 import "./monaco.css";
 import { SYM_NIL } from "@/utils";
+import { setupHinting } from "@/pyodide/PyEnv";
+import type { PyProxy } from "pyodide/ffi";
 
 export type HighlightRange =
   | {
@@ -19,13 +21,13 @@ export type HighlightRange =
 
 export function MonacoEditor({
   highlight,
-  frameVars,
+  frame,
   loadedValue,
   model,
   setModel,
 }: {
   highlight: HighlightRange;
-  frameVars: Record<string, unknown> | null;
+  frame: PyProxy | null;
   loadedValue: unknown;
   model: m.editor.ITextModel | null;
   setModel: (model: m.editor.ITextModel) => void;
@@ -145,6 +147,50 @@ print(f"Hello, {name}!")`,
       hoverProviderDisposable.current?.dispose();
     };
   }, [highlight, loadedValue, editor, model]);
+
+  const valueHintDecorationsRef =
+    useRef<m.editor.IEditorDecorationsCollection | null>(null);
+
+  useEffect(() => {
+    const monaco = getMonacoInstance();
+    if (!editor || !model || !monaco) return;
+
+    // Clear previous value hint decorations
+    valueHintDecorationsRef.current?.clear();
+
+    if (highlight === null || frame === null) {
+      return;
+    }
+
+    const hints: m.editor.IModelDeltaDecoration[] = [];
+
+    const getHintsForFrame = setupHinting(model.getValue());
+
+    if (!getHintsForFrame) {
+      return;
+    }
+
+    const varHints = getHintsForFrame(frame);
+
+    console.log("Variable hints:", varHints);
+
+    for (const [line, col, varname, valueStr] of varHints) {
+      hints.push({
+        range: new monaco.Range(line, col, line, col + varname.length),
+        options: {
+          after: {
+            content: `: ${valueStr}`,
+            inlineClassName: "value-hint-decoration",
+          },
+          hoverMessage: {
+            value: `**${varname}**: \`${valueStr}\``,
+          },
+        },
+      });
+    }
+
+    valueHintDecorationsRef.current = editor.createDecorationsCollection(hints);
+  }, [highlight, frame, editor, model]);
 
   return <div className="w-full h-full" ref={containerRef} />;
 }

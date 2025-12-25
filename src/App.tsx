@@ -7,6 +7,7 @@ import { createPyodide, debugPythonCode, runPythonCode } from "./pyodide/PyEnv";
 import type * as m from "monaco-editor";
 import type { Terminal } from "xterm";
 import { normalizeNewlines, SYM_NIL } from "./utils";
+import type { PyProxy } from "pyodide/ffi";
 
 export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
@@ -15,9 +16,7 @@ export function App() {
   const [debugCb, setDebugCb] = useState<(() => void) | null>(null);
   const highlightRef = useRef<HighlightRange>(null);
   const [highlight, setHighlight] = useState<HighlightRange | null>(null);
-  const [frameVars, setFrameVars] = useState<Record<string, unknown> | null>(
-    null
-  );
+  const [frame, setFrame] = useState<PyProxy | null>(null);
   const [loadedValue, setLoadedValue] = useState<unknown>(SYM_NIL);
   const xtermRef = useRef<Terminal>(null);
 
@@ -129,7 +128,7 @@ export function App() {
               return Promise.resolve();
             }
 
-            setFrameVars(frame.f_locals.toJs());
+            setFrame(frame.copy());
             setLoadedValue(() => loadedValue);
             setHighlight((highlightRef.current = newHighlight));
             // return Promise.resolve();
@@ -159,7 +158,7 @@ export function App() {
       } finally {
         setDebugCb(null);
         setHighlight((highlightRef.current = null));
-        setFrameVars(null);
+        setFrame(null);
         setLoadedValue(SYM_NIL);
       }
     },
@@ -181,7 +180,7 @@ export function App() {
       >
         <MonacoEditor
           highlight={highlight}
-          frameVars={frameVars}
+          frame={frame}
           loadedValue={loadedValue}
           model={model}
           setModel={setModel}

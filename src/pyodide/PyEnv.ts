@@ -3,6 +3,7 @@ import { loadPyodide, type PyodideAPI } from "pyodide";
 import type { PyProxy } from "pyodide/ffi";
 import type { RefObject } from "react";
 import type { Terminal } from "xterm";
+import astUtilsSrc from "./astUtils.py" with { type: "text" };
 
 let pyodide: PyodideAPI | null = null;
 
@@ -14,7 +15,7 @@ export async function createPyodide(
       indexURL: `${window.location.origin}/pyodide/`,
     });
 
-    setupPyodide(pyodide, xtermRef);
+    await setupPyodide(pyodide, xtermRef);
   }
   return pyodide;
 }
@@ -23,7 +24,10 @@ export function getPyodide(): PyodideAPI | null {
   return pyodide;
 }
 
-function setupPyodide(py: PyodideAPI, xtermRef: RefObject<Terminal | null>) {
+async function setupPyodide(
+  py: PyodideAPI,
+  xtermRef: RefObject<Terminal | null>
+) {
   py.setStdout({
     write: (data: Uint8Array) => {
       // Normalize newlines for terminal
@@ -202,6 +206,30 @@ __builtins__.input = XTermInput()
 __builtins__.clear = xterm_clear
 js.wait_for_js_promise = wait_for_js_promise
 `);
+
+  if (astUtilsSrc.startsWith("/")) {
+    const src = await fetch(astUtilsSrc).then((res) => res.text());
+    setupHintingFunc = py.runPython(src);
+  } else {
+    setupHintingFunc = py.runPython(astUtilsSrc);
+  }
+}
+
+type HintingFunc = (
+  frame: PyProxy
+) => [line: number, col: number, varname: string, valueStr: string][];
+
+let setupHintingFunc: ((source: string) => HintingFunc) | null = null;
+
+export function setupHinting(source: string): HintingFunc | null {
+  if (!setupHintingFunc) {
+    throw new Error("AST utils not loaded yet.");
+  }
+  const func = setupHintingFunc!(source);
+  return (frame: PyProxy) => {
+    //@ts-expect-error I don't feel like properly typing this
+    return func(frame).toJs();
+  };
 }
 
 export async function runPythonCode(
@@ -212,7 +240,10 @@ export async function runPythonCode(
   if (!py) {
     throw new Error("Pyodide is not loaded.");
   }
-  await py.runPythonAsync(code, { filename });
+  await py.runPythonAsync(code, {
+    globals: py.toPy({}),
+    filename,
+  });
 }
 
 type DebugCallback = (frame: PyProxy, event: string, arg: any) => Promise<void>;
@@ -267,7 +298,10 @@ export async function debugPythonCode(
 
   try {
     await setupDebugging(py, filename, pauseCallback);
-    await py.runPythonAsync(code + "\na = 1", { filename });
+    await py.runPythonAsync(code + "\na = 1", {
+      globals: py.toPy({}),
+      filename,
+    });
   } finally {
     await clearDebugging(py);
   }

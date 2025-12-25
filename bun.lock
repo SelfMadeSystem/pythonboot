@@ -8,6 +8,7 @@
         "@monaco-editor/loader": "^1.7.0",
         "bun-plugin-tailwind": "^0.1.2",
         "monaco-editor": "^0.55.1",
+        "prettier": "^3.7.4",
         "pyodide": "^0.29.0",
         "react": "^19",
         "react-dom": "^19",
@@ -75,6 +76,8 @@
     "monaco-editor": ["monaco-editor@0.55.1", "", { "dependencies": { "dompurify": "3.2.7", "marked": "14.0.0" } }, "sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A=="],
 
     "monaco-types": ["monaco-types@0.1.0", "", {}, "sha512-aWK7SN9hAqNYi0WosPoMjenMeXJjwCxDibOqWffyQ/qXdzB/86xshGQobRferfmNz7BSNQ8GB0MD0oby9/5fTQ=="],
+
+    "prettier": ["prettier@3.7.4", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-v6UNi1+3hSlVvv8fSaoUbggEM5VErKmmpGA7Pl3HF8V6uKY7rvClBOJlH6yNwQtfTueNkGVpOv/mtWL9L4bgRA=="],
 
     "pyodide": ["pyodide@0.29.0", "", { "dependencies": { "@types/emscripten": "^1.41.4", "ws": "^8.5.0" } }, "sha512-ObIvsTmcrxAWKg+FT1GjfSdDmQc5CabnYe/nn5BCuhr9BVVITeQ24DBdZuG5B2tIiAZ9YonBpnDB7cmHZyd2Rw=="],
 
