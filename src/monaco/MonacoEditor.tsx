@@ -5,6 +5,7 @@ import "./monaco.css";
 import { SYM_NIL } from "@/utils";
 import { setupHinting } from "@/pyodide/PyEnv";
 import type { PyProxy } from "pyodide/ffi";
+import { MonacoTabs } from "./MonacoTabs";
 
 export type HighlightRange =
   | {
@@ -42,25 +43,15 @@ export function MonacoEditor({
   useEffect(() => {
     if (!containerRef.current || editor) return;
 
-    createEditorInstance(containerRef.current, (monaco) => {
-      const model = monaco.editor.createModel(
-        `\
-name = input("Enter your name: ")
-print(f"Hello, {name}!")`,
-        "python",
-        monaco.Uri.file("main.py")
-      );
-
-      setModel(model);
-
+    createEditorInstance(containerRef.current, () => {
       return {
-        model,
         rulers: [80],
         automaticLayout: true,
         theme: "vs-dark",
       };
     }).then((ed) => {
       setEditor(ed);
+      ed.setModel(null);
     });
   }, [containerRef, editor]);
 
@@ -172,8 +163,6 @@ print(f"Hello, {name}!")`,
 
     const varHints = getHintsForFrame(frame);
 
-    console.log("Variable hints:", varHints);
-
     for (const [line, col, varname, valueStr] of varHints) {
       hints.push({
         range: new monaco.Range(line, col, line, col + varname.length),
@@ -192,5 +181,19 @@ print(f"Hello, {name}!")`,
     valueHintDecorationsRef.current = editor.createDecorationsCollection(hints);
   }, [highlight, frame, editor, model]);
 
-  return <div className="w-full h-full" ref={containerRef} />;
+  return (
+    <div className="w-full h-full flex flex-col">
+      <MonacoTabs
+        model={model}
+        setModel={(model) => {
+          setModel(model);
+          if (editor) {
+            editor.setModel(model);
+          }
+        }}
+        editor={editor}
+      />
+      <div className="w-full h-full" ref={containerRef} />
+    </div>
+  );
 }

@@ -169,7 +169,8 @@ async function setupPyodide(
     },
   });
 
-  py.runPython(`
+  py.runPython(
+    `
 import js
 import xterm
 import asyncio
@@ -205,13 +206,27 @@ def wait_for_js_promise(promise):
 __builtins__.input = XTermInput()
 __builtins__.clear = xterm_clear
 js.wait_for_js_promise = wait_for_js_promise
-`);
+`,
+    {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
+    }
+  );
 
   if (astUtilsSrc.startsWith("/")) {
     const src = await fetch(astUtilsSrc).then((res) => res.text());
-    setupHintingFunc = py.runPython(src);
+    setupHintingFunc = py.runPython(src, {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
+    });
   } else {
-    setupHintingFunc = py.runPython(astUtilsSrc);
+    setupHintingFunc = py.runPython(astUtilsSrc, {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
+    });
   }
 }
 
@@ -241,7 +256,9 @@ export async function runPythonCode(
     throw new Error("Pyodide is not loaded.");
   }
   await py.runPythonAsync(code, {
-    globals: py.toPy({}),
+    globals: py.toPy({
+      ...py.globals.toJs(),
+    }),
     filename,
   });
 }
@@ -255,28 +272,29 @@ async function setupDebugging(
 ) {
   await py.runPythonAsync(
     `
-import inspect
-import js
 import sys
 
-jscb = js__cb
+def trace_cb(js__cb):
+    def dostuff(frame, event, arg):
+        import js
+        frame.f_trace_opcodes = True
+        # if event != "line":
+        #     return dostuff
+        line_no = frame.f_lineno
+        filename = frame.f_code.co_filename
+        # Only pause for the target script
+        if filename != "${filename}":
+            return dostuff
+        js.wait_for_js_promise(js__cb(frame, event, arg))
+        return dostuff
+    return dostuff
 
-def trace_cb(frame, event, arg):
-    global jscb, trace_cb
-    frame.f_trace_opcodes = True
-    # if event != "line":
-    #     return trace_cb
-    line_no = frame.f_lineno
-    filename = frame.f_code.co_filename
-    # Only pause for the target script
-    if filename != "${filename}":
-        return trace_cb
-    js.wait_for_js_promise(jscb(frame, event, arg))
-    return trace_cb
-
-sys.settrace(trace_cb)
+sys.settrace(trace_cb(js__cb))
 `,
     {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
       locals: py.toPy({ js__cb: cb }),
     }
   );
@@ -299,7 +317,9 @@ export async function debugPythonCode(
   try {
     await setupDebugging(py, filename, pauseCallback);
     await py.runPythonAsync(code + "\na = 1", {
-      globals: py.toPy({}),
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
       filename,
     });
   } finally {

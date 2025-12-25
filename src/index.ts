@@ -5,7 +5,6 @@ function packageRoute(name: string) {
   return (req: Request) => {
     const url = new URL(req.url);
     // Get the path after /<name>/
-    console.log(`Serving ${name} file: ${url.pathname}`);
     const filePath = url.pathname.replace(/^\/[a-zA-Z]+\//, "");
     // Serve the file from node_modules/<name>/
     return new Response(Bun.file(`./node_modules/${name}/${filePath}`));

@@ -1,0 +1,210 @@
+import type * as m from "monaco-editor";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getMonacoInstance } from "./MonacoStore";
+
+export function MonacoTabs({
+  model,
+  setModel,
+  editor,
+}: {
+  model: m.editor.ITextModel | null;
+  setModel: (model: m.editor.ITextModel) => void;
+  editor: m.editor.IStandaloneCodeEditor | null;
+}) {
+  const [tabs, setTabs] = useState<
+    { label: string; model: m.editor.ITextModel }[]
+  >([]);
+  const [contextMenu, setContextMenu] = useState<{
+    mouseX: number;
+    mouseY: number;
+    tabIdx: number;
+  } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const addTab = useCallback(() => {
+    const monaco = getMonacoInstance();
+    if (!monaco) return;
+
+    const filename = prompt("Enter file name", `file${tabs.length + 1}.py`);
+    if (!filename) return;
+
+    const newModel = monaco.editor.createModel(
+      "",
+      "python",
+      monaco.Uri.file(filename)
+    );
+
+    setTabs((prevTabs) => [...prevTabs, { label: filename, model: newModel }]);
+    setModel(newModel);
+  }, [tabs.length, setModel]);
+
+  // Context menu handlers
+  const handleContextMenu = (event: React.MouseEvent, idx: number) => {
+    event.preventDefault();
+    setContextMenu({
+      mouseX: event.clientX - 2,
+      mouseY: event.clientY - 4,
+      tabIdx: idx,
+    });
+  };
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      if (
+        contextMenuRef.current &&
+        !contextMenuRef.current.contains(event.target as Node)
+      ) {
+        setContextMenu(null);
+      }
+    };
+    if (contextMenu) {
+      document.addEventListener("mousedown", handleClick);
+    } else {
+      document.removeEventListener("mousedown", handleClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [contextMenu]);
+
+  // Menu actions
+  const handleRename = () => {
+    if (contextMenu) {
+      const idx = contextMenu.tabIdx;
+      const tab = tabs[idx];
+      if (!tab) return setContextMenu(null);
+      const newName = prompt("Rename file", tab.label);
+      if (newName && newName !== tab.label) {
+        setTabs((prev) =>
+          prev.map((tab, i) =>
+            i === idx
+              ? {
+                  ...tab,
+                  label: newName,
+                  model: (() => {
+                    // Create a new model with the new URI, dispose old model
+                    const monaco = getMonacoInstance();
+                    if (!monaco) return tab.model;
+                    const newModel = monaco.editor.createModel(
+                      tab.model.getValue(),
+                      "python",
+                      monaco.Uri.file(newName)
+                    );
+                    setModel(newModel);
+                    tab.model.dispose();
+                    return newModel;
+                  })(),
+                }
+              : tab
+          )
+        );
+      }
+      setContextMenu(null);
+    }
+  };
+
+  const handleDuplicate = () => {
+    if (contextMenu) {
+      const idx = contextMenu.tabIdx;
+      const monaco = getMonacoInstance();
+      if (!monaco) return;
+      const origTab = tabs[idx];
+      if (!origTab) return setContextMenu(null);
+      const baseName = origTab.label.replace(/(\.py)?$/, "");
+      let newName = baseName + "_copy.py";
+      let count = 1;
+      while (tabs.some((t) => t.label === newName)) {
+        newName = `${baseName}_copy${count}.py`;
+        count++;
+      }
+      const newModel = monaco.editor.createModel(
+        origTab.model.getValue(),
+        "python",
+        monaco.Uri.file(newName)
+      );
+      setTabs((prev) => [
+        ...prev.slice(0, idx + 1),
+        { label: newName, model: newModel },
+        ...prev.slice(idx + 1),
+      ]);
+      setModel(newModel);
+      setContextMenu(null);
+    }
+  };
+
+  const handleDelete = () => {
+    if (contextMenu) {
+      const idx = contextMenu.tabIdx;
+      setTabs((prev) => {
+        const tabToDelete = prev[idx];
+        const newTabs = prev.filter((_, i) => i !== idx);
+        // If the deleted tab was active, switch to another tab
+        if (tabToDelete && model === tabToDelete.model && newTabs.length > 0) {
+          const nextTab = newTabs[Math.max(0, idx - 1)];
+          if (nextTab) setModel(nextTab.model);
+        }
+        return newTabs;
+      });
+      setContextMenu(null);
+    }
+  };
+
+  return (
+    <div className="w-full border-b border-gray-300 flex items-center text-white relative">
+      {tabs.map((tab, index) => (
+        <button
+          key={index}
+          className={`cursor-pointer px-4 py-2 ${
+            model === tab.model ? "bg-gray-800" : "hover:bg-[#fff1]"
+          }`}
+          onClick={() => setModel(tab.model)}
+          onContextMenu={(e) => handleContextMenu(e, index)}
+        >
+          {tab.label}
+        </button>
+      ))}
+      <button className="cursor-pointer group px-2" onClick={addTab}>
+        <div className="group-hover:bg-[#fff1] p-2 rounded-full">
+          <svg
+            className="h-4 w-4"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M14 2H6C4.89 2 4 2.89 4 4V20C4 21.11 4.89 22 6 22H13.81C13.28 21.09 13 20.05 13 19C13 15.69 15.69 13 19 13C19.34 13 19.67 13.03 20 13.08V8L14 2M13 9V3.5L18.5 9H13M23 20H20V23H18V20H15V18H18V15H20V18H23V20Z"></path>
+          </svg>
+        </div>
+      </button>
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="absolute z-50 bg-gray-900 border border-gray-700 rounded shadow-lg min-w-30 text-sm"
+          style={{
+            top: contextMenu.mouseY,
+            left: contextMenu.mouseX,
+          }}
+        >
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={handleRename}
+          >
+            Rename
+          </button>
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-700"
+            onClick={handleDuplicate}
+          >
+            Duplicate
+          </button>
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-700 text-red-400"
+            onClick={handleDelete}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
