@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
+import { WebLinksAddon } from "xterm-addon-web-links";
 import "xterm/css/xterm.css";
 import "./xterm.css";
 
@@ -26,6 +27,7 @@ export function XTerminal({ split, xtermRef }: XTerminalProps) {
       const fitAddon = new FitAddon();
       fitRef.current = fitAddon;
       xterm.loadAddon(fitAddon);
+      xterm.loadAddon(new WebLinksAddon());
       xterm.open(terminalRef.current);
       fitAddon.fit();
       xtermRef.current = xterm;

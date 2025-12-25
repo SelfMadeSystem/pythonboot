@@ -72,6 +72,7 @@ async function setupPyodide(
       xterm.options.cursorBlink = true;
       xterm.focus();
 
+      // FIXME: this actually doesn't work properly
       return new Promise<string | Error>((resolve, reject) => {
         let input = "";
         // 0 is at the end of the line, 1 is before the last character, etc.
@@ -205,6 +206,21 @@ def wait_for_js_promise(promise):
 
 __builtins__.input = XTermInput()
 __builtins__.clear = xterm_clear
+__builtins__.copyright = f"""Copyright (c) 2025 Shoghi Simon
+All Rights Reserved.
+
+{copyright}"""
+__builtins__.credits = f"""    Thanks to Pyodide for making this possible.
+    Thanks to UdeM's DIRO for their godawful online Python env which
+    inspired me to make this project.
+{credits}"""
+__builtins__.license = f"""pythonBoot is licensed under the MIT License.
+
+See https://opensource.org/licenses/MIT for more information.
+
+Python is a trademark of the Python Software Foundation.
+
+{license}"""
 js.wait_for_js_promise = wait_for_js_promise
 `,
     {
