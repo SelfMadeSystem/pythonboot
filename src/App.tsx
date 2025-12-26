@@ -14,11 +14,12 @@ export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
   const [split, setSplit] = useState(0.5);
   const [pyodide, setPyodide] = useState<PyodideAPI | null>(null);
-  const [debugCb, setDebugCb] = useState<(() => void) | null>(null);
+  const [debugCb, setDebugCb] = useState<((stopDebug?: true) => void) | null>(null);
   const highlightRef = useRef<HighlightRange>(null);
   const [highlight, setHighlight] = useState<HighlightRange | null>(null);
   const [frame, setFrame] = useState<PyProxy | null>(null);
   const [loadedValue, setLoadedValue] = useState<unknown>(SYM_NIL);
+  const [running, setRunning] = useState(false);
   const xtermRef = useRef<Terminal>(null);
 
   useEffect(() => {
@@ -42,6 +43,8 @@ export function App() {
 
       syncMonacoToPyodide();
 
+      setRunning(true);
+
       const code = model.getValue();
       const filename = model.uri.path || "script.py";
 
@@ -53,12 +56,7 @@ export function App() {
             if (line > lines || line < 1) {
               return Promise.resolve();
             }
-            const fname = frame.f_code.co_filename;
-            const func = frame.f_code.co_name;
             if (event !== "opcode") {
-              console.log(
-                `[DEBUG TRACE] event: ${event}, line: ${line}, filename: ${fname}, func: ${func}`
-              );
               return Promise.resolve();
             }
 
@@ -100,19 +98,6 @@ export function App() {
                 break;
             }
 
-            console.log(`[DEBUG TRACE] opcode: ${opname} (${opcode})`, {
-              line,
-              fname,
-              func,
-              instrIndex,
-              startLine,
-              startCol,
-              endLine,
-              endCol,
-              arg,
-              loadedValue,
-            });
-
             const newHighlight: HighlightRange = {
               startLine: startLine || line,
               endLine: endLine || line,
@@ -136,9 +121,9 @@ export function App() {
             setLoadedValue(() => loadedValue);
             setHighlight((highlightRef.current = newHighlight));
             // return Promise.resolve();
-            return new Promise<void>((resolve) => {
-              setDebugCb(() => () => {
-                resolve();
+            return new Promise<void | true>((resolve) => {
+              setDebugCb(() => (stopDebug: undefined | true = undefined) => {
+                resolve(stopDebug);
               });
             });
           })
@@ -160,6 +145,7 @@ export function App() {
           xterm.write(`\x1b[31m${normalizeNewlines(output)}\x1b[0m`);
         });
       } finally {
+        setRunning(false);
         setDebugCb(null);
         setHighlight((highlightRef.current = null));
         setFrame(null);
@@ -192,16 +178,21 @@ export function App() {
 
         <div className="absolute top-2 right-2 z-10 flex gap-2">
           <button
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer"
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => {
+              if (debugCb) {
+                debugCb(true);
+                return;
+              }
               if (!model) return;
               runCode(model, false);
             }}
+            disabled={running && !debugCb}
           >
             Run
           </button>
           <button
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer"
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => {
               if (debugCb) {
                 debugCb();
@@ -210,6 +201,7 @@ export function App() {
               if (!model) return;
               runCode(model, true);
             }}
+            disabled={running && !debugCb}
           >
             {debugCb ? "Continue" : "Debug"}
           </button>

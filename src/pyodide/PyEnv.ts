@@ -265,7 +265,7 @@ export async function runPythonCode(
   });
 }
 
-type DebugCallback = (frame: PyProxy, event: string, arg: any) => Promise<void>;
+type DebugCallback = (frame: PyProxy, event: string, arg: any) => Promise<void | true>;
 
 async function setupDebugging(
   py: PyodideAPI,
@@ -279,15 +279,17 @@ import sys
 def trace_cb(js__cb):
     def dostuff(frame, event, arg):
         import js
+        import sys
         frame.f_trace_opcodes = True
-        # if event != "line":
-        #     return dostuff
         line_no = frame.f_lineno
         filename = frame.f_code.co_filename
         # Only pause for the target script
         if filename != "${filename}":
             return dostuff
-        js.wait_for_js_promise(js__cb(frame, event, arg))
+        result = js.wait_for_js_promise(js__cb(frame, event, arg))
+        if result is True:
+            sys.settrace(None)
+            return None
         return dostuff
     return dostuff
 
