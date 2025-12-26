@@ -18,7 +18,7 @@ An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor 
 - [ ] Package management (might work, just haven't tested it)
 - [ ] Canvas support (primarily for turtle graphics)
 - [ ] Custom websites with embedded Python code
-- [ ] Persistence
+- [x] Persistence
 - [ ] Save and load code snippets
 - [ ] Share code snippets via URL
 - [ ] Theme support (light/dark mode, currently only dark mode is available)
