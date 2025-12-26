@@ -10,16 +10,41 @@ mLoader.config({
 
 let monacoInstance: typeof m | null = null;
 let editorInstance: m.editor.IStandaloneCodeEditor | null = null;
+let monacoCbs: Array<(monaco: typeof m) => void> = [];
+let instanceCbs: Array<(editor: m.editor.IStandaloneCodeEditor) => void> = [];
 
 export async function createMonacoInstance(): Promise<typeof m> {
   if (!monacoInstance) {
     monacoInstance = await mLoader.init();
+    for (const cb of monacoCbs) {
+      cb(monacoInstance!);
+    }
   }
   return monacoInstance!;
 }
 
 export function getMonacoInstance(): typeof m | null {
   return monacoInstance;
+}
+
+export async function waitForMonacoInstance(): Promise<typeof m> {
+  if (monacoInstance) {
+    return monacoInstance;
+  }
+
+  return new Promise((resolve) => {
+    monacoCbs.push(resolve);
+  });
+}
+
+export async function waitForEditorInstance(): Promise<m.editor.IStandaloneCodeEditor> {
+  if (editorInstance) {
+    return editorInstance;
+  }
+
+  return new Promise((resolve) => {
+    instanceCbs.push(resolve);
+  });
 }
 
 export async function createEditorInstance(
@@ -34,6 +59,10 @@ export async function createEditorInstance(
       container,
       typeof options === "function" ? options(monaco) : options
     );
+
+    for (const cb of instanceCbs) {
+      cb(editorInstance!);
+    }
   }
   return editorInstance;
 }

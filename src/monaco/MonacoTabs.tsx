@@ -1,6 +1,6 @@
 import type * as m from "monaco-editor";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getMonacoInstance } from "./MonacoStore";
+import { getMonacoInstance, waitForEditorInstance, waitForMonacoInstance } from "./MonacoStore";
 
 export function MonacoTabs({
   model,
@@ -37,6 +37,62 @@ export function MonacoTabs({
     setTabs((prevTabs) => [...prevTabs, { label: filename, model: newModel }]);
     setModel(newModel);
   }, [tabs.length, setModel]);
+
+  // Load from localstorage on mount
+  useEffect(() => {
+    const loadTabs = async () => {
+      const monaco = await waitForMonacoInstance();
+      const editor = await waitForEditorInstance();
+
+      const saved = localStorage.getItem("monacoTabs");
+      if (!saved) {
+        return;
+      }
+
+      const parsed: { label: string; value: string }[] = JSON.parse(saved);
+      if (parsed.length === 0) {
+        return;
+      }
+
+      const loadedTabs: { label: string; model: m.editor.ITextModel }[] = [];
+      for (const tab of parsed) {
+        const model = monaco.editor.createModel(
+          tab.value,
+          "python",
+          monaco.Uri.file(tab.label)
+        );
+        loadedTabs.push({ label: tab.label, model });
+      }
+      setTabs(loadedTabs);
+      setModel(loadedTabs[0]!.model);
+      // Parent hasn't fully loaded yet, so must set model on editor directly
+      editor.setModel(loadedTabs[0]!.model);
+    };
+    loadTabs();
+  }, []);
+
+  // Save to localstorage on tabs change
+  useEffect(() => {
+    const saveModels = () => {
+      const toSave = tabs.map((tab) => ({
+        label: tab.label,
+        value: tab.model.getValue(),
+      }));
+      localStorage.setItem("monacoTabs", JSON.stringify(toSave));
+    };
+
+    const unsubs = tabs.map((tab) =>
+      tab.model.onDidChangeContent(() => {
+        saveModels();
+      })
+    );
+
+    return () => {
+      for (const unsub of unsubs) {
+        unsub.dispose();
+      }
+    };
+  }, [tabs]);
 
   // Context menu handlers
   const handleContextMenu = (event: React.MouseEvent, idx: number) => {
