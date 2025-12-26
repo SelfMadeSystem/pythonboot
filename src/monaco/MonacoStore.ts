@@ -1,6 +1,6 @@
-import type * as m from "monaco-editor";
-import mLoader from "@monaco-editor/loader";
-import { getPyodide } from "@/pyodide/PyEnv";
+import type * as m from 'monaco-editor';
+import { HOME, getPyodide } from '@/pyodide/PyEnv';
+import mLoader from '@monaco-editor/loader';
 
 mLoader.config({
   paths: {
@@ -32,7 +32,7 @@ export async function waitForMonacoInstance(): Promise<typeof m> {
     return monacoInstance;
   }
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     monacoCbs.push(resolve);
   });
 }
@@ -42,7 +42,7 @@ export async function waitForEditorInstance(): Promise<m.editor.IStandaloneCodeE
     return editorInstance;
   }
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     instanceCbs.push(resolve);
   });
 }
@@ -51,13 +51,13 @@ export async function createEditorInstance(
   container: HTMLDivElement,
   options:
     | m.editor.IStandaloneEditorConstructionOptions
-    | ((monaco: typeof m) => m.editor.IStandaloneEditorConstructionOptions)
+    | ((monaco: typeof m) => m.editor.IStandaloneEditorConstructionOptions),
 ): Promise<m.editor.IStandaloneCodeEditor> {
   if (!editorInstance) {
     const monaco = await createMonacoInstance();
     editorInstance = monaco.editor.create(
       container,
-      typeof options === "function" ? options(monaco) : options
+      typeof options === 'function' ? options(monaco) : options,
     );
 
     for (const cb of instanceCbs) {
@@ -81,7 +81,7 @@ export function syncMonacoToPyodide() {
   const models = monaco.editor.getModels();
 
   for (const model of models) {
-    const path = model.uri.fsPath;
+    const path = HOME + model.uri.fsPath;
     const content = model.getValue();
 
     if (pyodide.FS.analyzePath(path).exists) {

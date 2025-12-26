@@ -1,6 +1,10 @@
-import type * as m from "monaco-editor";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { getMonacoInstance, waitForEditorInstance, waitForMonacoInstance } from "./MonacoStore";
+import type * as m from 'monaco-editor';
+import {
+  getMonacoInstance,
+  waitForEditorInstance,
+  waitForMonacoInstance,
+} from './MonacoStore';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function MonacoTabs({
   model,
@@ -20,21 +24,26 @@ export function MonacoTabs({
     tabIdx: number;
   } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const loadedModelsRef = useRef<boolean>(false);
 
   const addTab = useCallback(() => {
     const monaco = getMonacoInstance();
     if (!monaco) return;
 
-    const filename = prompt("Enter file name", `file${tabs.length + 1}.py`);
+    const filename = prompt('Enter file name', `file${tabs.length + 1}.py`);
     if (!filename) return;
+    if (filename.includes('/') || filename.includes('..')) {
+      alert('Invalid file name.');
+      return;
+    }
 
     const newModel = monaco.editor.createModel(
-      "",
-      "python",
-      monaco.Uri.file(filename)
+      '',
+      'python',
+      monaco.Uri.file(filename),
     );
 
-    setTabs((prevTabs) => [...prevTabs, { label: filename, model: newModel }]);
+    setTabs(prevTabs => [...prevTabs, { label: filename, model: newModel }]);
     setModel(newModel);
   }, [tabs.length, setModel]);
 
@@ -44,7 +53,7 @@ export function MonacoTabs({
       const monaco = await waitForMonacoInstance();
       const editor = await waitForEditorInstance();
 
-      const saved = localStorage.getItem("monacoTabs");
+      const saved = localStorage.getItem('monacoTabs');
       if (!saved) {
         return;
       }
@@ -58,8 +67,8 @@ export function MonacoTabs({
       for (const tab of parsed) {
         const model = monaco.editor.createModel(
           tab.value,
-          "python",
-          monaco.Uri.file(tab.label)
+          'python',
+          monaco.Uri.file(tab.label),
         );
         loadedTabs.push({ label: tab.label, model });
       }
@@ -67,6 +76,7 @@ export function MonacoTabs({
       setModel(loadedTabs[0]!.model);
       // Parent hasn't fully loaded yet, so must set model on editor directly
       editor.setModel(loadedTabs[0]!.model);
+      loadedModelsRef.current = true;
     };
     loadTabs();
   }, []);
@@ -74,18 +84,22 @@ export function MonacoTabs({
   // Save to localstorage on tabs change
   useEffect(() => {
     const saveModels = () => {
-      const toSave = tabs.map((tab) => ({
+      const toSave = tabs.map(tab => ({
         label: tab.label,
         value: tab.model.getValue(),
       }));
-      localStorage.setItem("monacoTabs", JSON.stringify(toSave));
+      localStorage.setItem('monacoTabs', JSON.stringify(toSave));
     };
 
-    const unsubs = tabs.map((tab) =>
+    const unsubs = tabs.map(tab =>
       tab.model.onDidChangeContent(() => {
         saveModels();
-      })
+      }),
     );
+
+    if (loadedModelsRef.current) {
+      saveModels();
+    }
 
     return () => {
       for (const unsub of unsubs) {
@@ -114,12 +128,12 @@ export function MonacoTabs({
       }
     };
     if (contextMenu) {
-      document.addEventListener("mousedown", handleClick);
+      document.addEventListener('mousedown', handleClick);
     } else {
-      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener('mousedown', handleClick);
     }
     return () => {
-      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener('mousedown', handleClick);
     };
   }, [contextMenu]);
 
@@ -129,32 +143,38 @@ export function MonacoTabs({
       const idx = contextMenu.tabIdx;
       const tab = tabs[idx];
       if (!tab) return setContextMenu(null);
-      const newName = prompt("Rename file", tab.label);
-      if (newName && newName !== tab.label) {
-        setTabs((prev) =>
-          prev.map((tab, i) =>
-            i === idx
-              ? {
-                  ...tab,
-                  label: newName,
-                  model: (() => {
-                    // Create a new model with the new URI, dispose old model
-                    const monaco = getMonacoInstance();
-                    if (!monaco) return tab.model;
-                    const newModel = monaco.editor.createModel(
-                      tab.model.getValue(),
-                      "python",
-                      monaco.Uri.file(newName)
-                    );
-                    setModel(newModel);
-                    tab.model.dispose();
-                    return newModel;
-                  })(),
-                }
-              : tab
-          )
-        );
+      const newName = prompt('Rename file', tab.label);
+      if (newName === tab.label) {
+        return setContextMenu(null);
       }
+      if (!newName || newName.includes('/') || newName.includes('..')) {
+        alert('Invalid file name.');
+        return setContextMenu(null);
+      }
+      setTabs(prev =>
+        prev.map((tab, i) =>
+          i === idx
+            ? {
+                ...tab,
+                label: newName,
+                model: (() => {
+                  // Create a new model with the new URI, dispose old model
+                  const monaco = getMonacoInstance();
+                  if (!monaco) return tab.model;
+                  const newModel = monaco.editor.createModel(
+                    tab.model.getValue(),
+                    'python',
+                    monaco.Uri.file(newName),
+                  );
+                  setModel(newModel);
+                  tab.model.dispose();
+                  return newModel;
+                })(),
+              }
+            : tab,
+        ),
+      );
+
       setContextMenu(null);
     }
   };
@@ -166,19 +186,19 @@ export function MonacoTabs({
       if (!monaco) return;
       const origTab = tabs[idx];
       if (!origTab) return setContextMenu(null);
-      const baseName = origTab.label.replace(/(\.py)?$/, "");
-      let newName = baseName + "_copy.py";
+      const baseName = origTab.label.replace(/(\.py)?$/, '');
+      let newName = baseName + '_copy.py';
       let count = 1;
-      while (tabs.some((t) => t.label === newName)) {
+      while (tabs.some(t => t.label === newName)) {
         newName = `${baseName}_copy${count}.py`;
         count++;
       }
       const newModel = monaco.editor.createModel(
         origTab.model.getValue(),
-        "python",
-        monaco.Uri.file(newName)
+        'python',
+        monaco.Uri.file(newName),
       );
-      setTabs((prev) => [
+      setTabs(prev => [
         ...prev.slice(0, idx + 1),
         { label: newName, model: newModel },
         ...prev.slice(idx + 1),
@@ -191,7 +211,7 @@ export function MonacoTabs({
   const handleDelete = () => {
     if (contextMenu) {
       const idx = contextMenu.tabIdx;
-      setTabs((prev) => {
+      setTabs(prev => {
         const tabToDelete = prev[idx];
         const newTabs = prev.filter((_, i) => i !== idx);
         // If the deleted tab was active, switch to another tab
@@ -206,21 +226,21 @@ export function MonacoTabs({
   };
 
   return (
-    <div className="w-full border-b border-gray-300 flex items-center text-white relative">
+    <div className="relative flex w-full items-center border-b border-gray-300 text-white">
       {tabs.map((tab, index) => (
         <button
           key={index}
           className={`cursor-pointer px-4 py-2 ${
-            model === tab.model ? "bg-gray-800" : "hover:bg-[#fff1]"
+            model === tab.model ? 'bg-gray-800' : 'hover:bg-[#fff1]'
           }`}
           onClick={() => setModel(tab.model)}
-          onContextMenu={(e) => handleContextMenu(e, index)}
+          onContextMenu={e => handleContextMenu(e, index)}
         >
           {tab.label}
         </button>
       ))}
-      <button className="cursor-pointer group px-2" onClick={addTab}>
-        <div className="group-hover:bg-[#fff1] p-2 rounded-full">
+      <button className="group cursor-pointer px-2" onClick={addTab}>
+        <div className="rounded-full p-2 group-hover:bg-[#fff1]">
           <svg
             className="h-4 w-4"
             xmlns="http://www.w3.org/2000/svg"
@@ -235,26 +255,26 @@ export function MonacoTabs({
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          className="absolute z-50 bg-gray-900 border border-gray-700 rounded shadow-lg min-w-30 text-sm"
+          className="absolute z-50 min-w-30 rounded border border-gray-700 bg-gray-900 text-sm shadow-lg"
           style={{
             top: contextMenu.mouseY,
             left: contextMenu.mouseX,
           }}
         >
           <button
-            className="block w-full text-left px-4 py-2 hover:bg-gray-700"
+            className="block w-full cursor-pointer px-4 py-2 text-left hover:bg-gray-700"
             onClick={handleRename}
           >
             Rename
           </button>
           <button
-            className="block w-full text-left px-4 py-2 hover:bg-gray-700"
+            className="block w-full cursor-pointer px-4 py-2 text-left hover:bg-gray-700"
             onClick={handleDuplicate}
           >
             Duplicate
           </button>
           <button
-            className="block w-full text-left px-4 py-2 hover:bg-gray-700 text-red-400"
+            className="block w-full cursor-pointer px-4 py-2 text-left text-red-400 hover:bg-gray-700"
             onClick={handleDelete}
           >
             Delete

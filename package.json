@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint": "eslint . --ext .ts,.tsx",
+    "fmt": "prettier --write .",
     "dev": "bun --hot src/index.ts",
     "start": "NODE_ENV=production bun src/index.ts",
     "build": "bun run build.ts"
@@ -12,7 +14,6 @@
     "@monaco-editor/loader": "^1.7.0",
     "bun-plugin-tailwind": "^0.1.2",
     "monaco-editor": "^0.55.1",
-    "prettier": "^3.7.4",
     "pyodide": "^0.29.0",
     "react": "^19",
     "react-dom": "^19",
@@ -22,9 +23,17 @@
     "xterm-addon-web-links": "^0.9.0"
   },
   "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^6.0.0",
     "@types/bun": "latest",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "monaco-types": "^0.1.0"
+    "@typescript-eslint/parser": "^8.50.1",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "monaco-types": "^0.1.0",
+    "prettier": "^3.7.4",
+    "prettier-plugin-tailwindcss": "^0.7.2"
   }
 }

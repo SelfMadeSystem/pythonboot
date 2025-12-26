@@ -1,20 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import "./index.css";
-import { MonacoEditor, type HighlightRange } from "./monaco/MonacoEditor";
-import { XTerminal } from "./xterm/XTerminal";
-import type { PyodideAPI } from "pyodide";
-import { createPyodide, debugPythonCode, runPythonCode } from "./pyodide/PyEnv";
-import type * as m from "monaco-editor";
-import type { Terminal } from "xterm";
-import { normalizeNewlines, SYM_NIL } from "./utils";
-import type { PyProxy } from "pyodide/ffi";
-import { syncMonacoToPyodide } from "./monaco/MonacoStore";
+import type * as m from 'monaco-editor';
+import './index.css';
+import { type HighlightRange, MonacoEditor } from './monaco/MonacoEditor';
+import { syncMonacoToPyodide } from './monaco/MonacoStore';
+import { createPyodide, debugPythonCode, runPythonCode } from './pyodide/PyEnv';
+import { SYM_NIL, normalizeNewlines } from './utils';
+import { XTerminal } from './xterm/XTerminal';
+import type { PyodideAPI } from 'pyodide';
+import type { PyProxy } from 'pyodide/ffi';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Terminal } from 'xterm';
 
 export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
   const [split, setSplit] = useState(0.5);
   const [pyodide, setPyodide] = useState<PyodideAPI | null>(null);
-  const [debugCb, setDebugCb] = useState<((stopDebug?: true) => void) | null>(null);
+  const [debugCb, setDebugCb] = useState<((stopDebug?: true) => void) | null>(
+    null,
+  );
   const highlightRef = useRef<HighlightRange>(null);
   const [highlight, setHighlight] = useState<HighlightRange | null>(null);
   const [frame, setFrame] = useState<PyProxy | null>(null);
@@ -23,7 +25,7 @@ export function App() {
   const xtermRef = useRef<Terminal>(null);
 
   useEffect(() => {
-    createPyodide(xtermRef).then((py) => {
+    createPyodide(xtermRef).then(py => {
       setPyodide(py);
     });
   }, []);
@@ -31,13 +33,13 @@ export function App() {
   const runCode = useCallback(
     async (model: m.editor.ITextModel, debug: boolean) => {
       if (!pyodide) {
-        console.warn("Pyodide is not loaded yet.");
+        console.warn('Pyodide is not loaded yet.');
         return;
       }
 
       const xterm = xtermRef.current;
       if (!xterm) {
-        console.warn("XTerm is not available.");
+        console.warn('XTerm is not available.');
         return;
       }
 
@@ -46,9 +48,9 @@ export function App() {
       setRunning(true);
 
       const code = model.getValue();
-      const filename = model.uri.path || "script.py";
+      const filename = model.uri.path || 'script.py';
 
-      const lines = code.split("\n").length;
+      const lines = code.split('\n').length;
 
       const promise = debug
         ? debugPythonCode(code, filename, (frame, event) => {
@@ -56,7 +58,7 @@ export function App() {
             if (line > lines || line < 1) {
               return Promise.resolve();
             }
-            if (event !== "opcode") {
+            if (event !== 'opcode') {
               return Promise.resolve();
             }
 
@@ -74,19 +76,19 @@ export function App() {
             let loadedValue: unknown = SYM_NIL;
 
             const opcode = code[lasti];
-            const opname = pyodide.pyimport("dis").opname[opcode];
+            const opname = pyodide.pyimport('dis').opname[opcode];
 
             switch (opname) {
               // opcodes we don't need to handle
-              case "NOP":
-              case "POP_TOP":
-              case "RETURN_VALUE":
-              case "PUSH_NULL":
+              case 'NOP':
+              case 'POP_TOP':
+              case 'RETURN_VALUE':
+              case 'PUSH_NULL':
                 return Promise.resolve();
-              case "LOAD_CONST":
+              case 'LOAD_CONST':
                 loadedValue = frame.f_code.co_consts[arg];
                 break;
-              case "LOAD_NAME":
+              case 'LOAD_NAME':
                 const name = frame.f_code.co_names[arg];
                 if (name in frame.f_locals) {
                   loadedValue = frame.f_locals[name];
@@ -110,7 +112,7 @@ export function App() {
               highlightRef.current &&
               newHighlight.startLine === highlightRef.current.startLine &&
               newHighlight.endLine === highlightRef.current.endLine &&
-              "startColumn" in highlightRef.current &&
+              'startColumn' in highlightRef.current &&
               newHighlight.startColumn === highlightRef.current.startColumn &&
               newHighlight.endColumn === highlightRef.current.endColumn
             ) {
@@ -121,7 +123,7 @@ export function App() {
             setLoadedValue(() => loadedValue);
             setHighlight((highlightRef.current = newHighlight));
             // return Promise.resolve();
-            return new Promise<void | true>((resolve) => {
+            return new Promise<void | true>(resolve => {
               setDebugCb(() => (stopDebug: undefined | true = undefined) => {
                 resolve(stopDebug);
               });
@@ -129,14 +131,14 @@ export function App() {
           })
         : runPythonCode(code, filename);
       try {
-        await promise.catch((error) => {
+        await promise.catch(error => {
           const xterm = xtermRef.current;
           if (!xterm) {
-            console.warn("XTerm is not available.");
+            console.warn('XTerm is not available.');
             return;
           }
-          let output = "";
-          if (error && typeof error.message === "string") {
+          let output = '';
+          if (error && typeof error.message === 'string') {
             // Filter out Pyodide internals and JS wrapper
             output = error.message;
           } else {
@@ -152,14 +154,14 @@ export function App() {
         setLoadedValue(SYM_NIL);
       }
     },
-    [pyodide]
+    [pyodide],
   );
 
   return (
     <div
-      className="flex flex-col relative min-h-screen"
+      className="relative flex min-h-screen flex-col"
       style={{
-        background: "rgb(30, 30, 30)",
+        background: 'rgb(30, 30, 30)',
       }}
     >
       <div
@@ -178,7 +180,7 @@ export function App() {
 
         <div className="absolute top-2 right-2 z-10 flex gap-2">
           <button
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cursor-pointer rounded bg-green-600 px-3 py-1 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => {
               if (debugCb) {
                 debugCb(true);
@@ -192,7 +194,7 @@ export function App() {
             Run
           </button>
           <button
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cursor-pointer rounded bg-green-600 px-3 py-1 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => {
               if (debugCb) {
                 debugCb();
@@ -203,15 +205,15 @@ export function App() {
             }}
             disabled={running && !debugCb}
           >
-            {debugCb ? "Continue" : "Debug"}
+            {debugCb ? 'Continue' : 'Debug'}
           </button>
         </div>
       </div>
-      <div className="relative h-0 w-full z-10">
+      <div className="relative z-10 h-0 w-full">
         <div className="absolute inset-0 h-0.5 -translate-y-1/2 bg-white/50" />
         <div
-          className="absolute inset-0 h-2 -translate-y-1/2 bg-transparent cursor-row-resize hover:bg-gray-300/50 transition"
-          onMouseDown={(e) => {
+          className="absolute inset-0 h-2 -translate-y-1/2 cursor-row-resize bg-transparent transition hover:bg-gray-300/50"
+          onMouseDown={e => {
             const startY = e.clientY;
             const startSplit = split;
             const onMouseMove = (e: MouseEvent) => {
@@ -220,11 +222,11 @@ export function App() {
               setSplit(Math.min(Math.max(newSplit, 0.1), 0.9));
             };
             const onMouseUp = () => {
-              window.removeEventListener("mousemove", onMouseMove);
-              window.removeEventListener("mouseup", onMouseUp);
+              window.removeEventListener('mousemove', onMouseMove);
+              window.removeEventListener('mouseup', onMouseUp);
             };
-            window.addEventListener("mousemove", onMouseMove);
-            window.addEventListener("mouseup", onMouseUp);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
           }}
         />
       </div>

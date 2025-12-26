@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
-import { WebLinksAddon } from "xterm-addon-web-links";
-import "xterm/css/xterm.css";
-import "./xterm.css";
+import './xterm.css';
+import { useEffect, useRef } from 'react';
+import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import { WebLinksAddon } from 'xterm-addon-web-links';
+import 'xterm/css/xterm.css';
 
 interface XTerminalProps {
   split: number;
@@ -20,8 +20,8 @@ export function XTerminal({ split, xtermRef }: XTerminalProps) {
         cols: 80,
         rows: 24,
         theme: {
-          background: "#1e1e1e",
-          foreground: "#ffffff",
+          background: '#1e1e1e',
+          foreground: '#ffffff',
         },
       });
       const fitAddon = new FitAddon();
@@ -40,5 +40,5 @@ export function XTerminal({ split, xtermRef }: XTerminalProps) {
     fit.fit();
   }, [split]);
 
-  return <div className="w-full h-full pt-0.5" ref={terminalRef} />;
+  return <div className="h-full w-full pt-0.5" ref={terminalRef} />;
 }

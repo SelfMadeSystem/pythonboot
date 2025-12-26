@@ -1,11 +1,11 @@
-import type * as m from "monaco-editor";
-import { useEffect, useRef, useState } from "react";
-import { createEditorInstance, getMonacoInstance } from "./MonacoStore";
-import "./monaco.css";
-import { SYM_NIL } from "@/utils";
-import { setupHinting } from "@/pyodide/PyEnv";
-import type { PyProxy } from "pyodide/ffi";
-import { MonacoTabs } from "./MonacoTabs";
+import type * as m from 'monaco-editor';
+import { createEditorInstance, getMonacoInstance } from './MonacoStore';
+import { MonacoTabs } from './MonacoTabs';
+import './monaco.css';
+import { setupHinting } from '@/pyodide/PyEnv';
+import { SYM_NIL } from '@/utils';
+import type { PyProxy } from 'pyodide/ffi';
+import { useEffect, useRef, useState } from 'react';
 
 export type HighlightRange =
   | {
@@ -35,7 +35,7 @@ export function MonacoEditor({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [editor, setEditor] = useState<m.editor.IStandaloneCodeEditor | null>(
-    null
+    null,
   );
   const pauseDecorationsRef =
     useRef<m.editor.IEditorDecorationsCollection | null>(null);
@@ -47,9 +47,9 @@ export function MonacoEditor({
       return {
         rulers: [80],
         // automaticLayout: true,
-        theme: "vs-dark",
+        theme: 'vs-dark',
       };
-    }).then((ed) => {
+    }).then(ed => {
       setEditor(ed);
       ed.setModel(null);
       const ro = new window.ResizeObserver(() => {
@@ -78,13 +78,13 @@ export function MonacoEditor({
       {
         range: new monaco.Range(
           highlight.startLine,
-          "startColumn" in highlight ? highlight.startColumn : 1,
+          'startColumn' in highlight ? highlight.startColumn : 1,
           highlight.endLine,
-          "endColumn" in highlight ? highlight.endColumn : 1
+          'endColumn' in highlight ? highlight.endColumn : 1,
         ),
         options: {
-          isWholeLine: !("startColumn" in highlight),
-          className: "current-execution-line",
+          isWholeLine: !('startColumn' in highlight),
+          className: 'current-execution-line',
         },
       },
     ]);
@@ -117,7 +117,7 @@ export function MonacoEditor({
           const inRange =
             position.lineNumber >= highlight.startLine &&
             position.lineNumber <= highlight.endLine &&
-            (!("startColumn" in highlight) ||
+            (!('startColumn' in highlight) ||
               ((position.lineNumber > highlight.startLine ||
                 position.column >= highlight.startColumn) &&
                 (position.lineNumber < highlight.endLine ||
@@ -127,9 +127,9 @@ export function MonacoEditor({
             return {
               range: new monaco.Range(
                 highlight.startLine,
-                "startColumn" in highlight ? highlight.startColumn : 1,
+                'startColumn' in highlight ? highlight.startColumn : 1,
                 highlight.endLine,
-                "endColumn" in highlight ? highlight.endColumn : 1
+                'endColumn' in highlight ? highlight.endColumn : 1,
               ),
               contents: [
                 {
@@ -140,7 +140,7 @@ export function MonacoEditor({
           }
           return null;
         },
-      }
+      },
     );
 
     return () => {
@@ -178,7 +178,7 @@ export function MonacoEditor({
         options: {
           after: {
             content: `: ${valueStr}`,
-            inlineClassName: "value-hint-decoration",
+            inlineClassName: 'value-hint-decoration',
           },
           hoverMessage: {
             value: `**${varname}**: \`${valueStr}\``,
@@ -191,10 +191,10 @@ export function MonacoEditor({
   }, [highlight, frame, editor, model]);
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="flex h-full w-full flex-col">
       <MonacoTabs
         model={model}
-        setModel={(model) => {
+        setModel={model => {
           setModel(model);
           if (editor) {
             editor.setModel(model);
@@ -202,7 +202,7 @@ export function MonacoEditor({
         }}
         editor={editor}
       />
-      <div className="w-full h-full" ref={containerRef} />
+      <div className="h-full w-full" ref={containerRef} />
     </div>
   );
 }

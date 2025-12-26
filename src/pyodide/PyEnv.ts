@@ -1,10 +1,12 @@
-import { normalizeNewlines } from "@/utils";
-import { loadPyodide, type PyodideAPI } from "pyodide";
-import type { PyProxy } from "pyodide/ffi";
-import type { RefObject } from "react";
-import type { Terminal } from "xterm";
-import astUtilsSrc from "./astUtils.py" with { type: "text" };
-import inputsSrc from "./inputs.py" with { type: "text" };
+import astUtilsSrc from './astUtils.py' with { type: 'text' };
+import inputsSrc from './inputs.py' with { type: 'text' };
+import { normalizeNewlines } from '@/utils';
+import { type PyodideAPI, loadPyodide } from 'pyodide';
+import type { PyProxy } from 'pyodide/ffi';
+import type { RefObject } from 'react';
+import type { Terminal } from 'xterm';
+
+export const HOME = '/home/pyboot/';
 
 let pyodide: PyodideAPI | null = null;
 
@@ -14,13 +16,13 @@ async function runPySrcOrFetch(
     globals?: PyProxy;
     locals?: PyProxy;
     filename?: string;
-  }
+  },
 ): Promise<unknown> {
   const pyodide = getPyodide();
   if (!pyodide) {
-    throw new Error("Pyodide is not loaded.");
+    throw new Error('Pyodide is not loaded.');
   }
-  if (src.startsWith("/")) {
+  if (src.startsWith('/')) {
     const res = await fetch(src);
     const code = await res.text();
     return pyodide.runPython(code, options);
@@ -29,11 +31,14 @@ async function runPySrcOrFetch(
 }
 
 export async function createPyodide(
-  xtermRef: RefObject<Terminal | null>
+  xtermRef: RefObject<Terminal | null>,
 ): Promise<PyodideAPI> {
   if (!pyodide) {
     pyodide = await loadPyodide({
       indexURL: `${window.location.origin}/pyodide/`,
+      env: {
+        HOME,
+      },
     });
 
     await setupPyodide(pyodide, xtermRef);
@@ -47,7 +52,7 @@ export function getPyodide(): PyodideAPI | null {
 
 async function setupPyodide(
   py: PyodideAPI,
-  xtermRef: RefObject<Terminal | null>
+  xtermRef: RefObject<Terminal | null>,
 ) {
   py.setStdout({
     write: (data: Uint8Array) => {
@@ -70,8 +75,8 @@ async function setupPyodide(
   });
   py.setStdin({
     read: (buf: Uint8Array) => {
-      const input = prompt("Input required:") || "";
-      const inputBytes = new TextEncoder().encode(input + "\n");
+      const input = prompt('Input required:') || '';
+      const inputBytes = new TextEncoder().encode(input + '\n');
       buf.set(inputBytes.slice(0, buf.length));
       return Math.min(inputBytes.length, buf.length);
     },
@@ -79,7 +84,7 @@ async function setupPyodide(
 
   let rejectPrevRead: (() => void) | null = null;
 
-  py.registerJsModule("xterm", {
+  py.registerJsModule('xterm', {
     getXTerm: () => {
       return xtermRef.current;
     },
@@ -94,46 +99,46 @@ async function setupPyodide(
       }
 
       const xterm = xtermRef.current;
-      if (!xterm) return "";
+      if (!xterm) return '';
       xterm.options.cursorBlink = true;
       xterm.focus();
 
-      return new Promise<string | Error>((resolve) => {
+      return new Promise<string | Error>(resolve => {
         rejectPrevRead = () => {
           rejectPrevRead = null;
           xterm.options.cursorBlink = false;
           offData.dispose();
-          resolve(new Error("Input interrupted"));
+          resolve(new Error('Input interrupted'));
         };
 
-        let input = "";
+        let input = '';
         // 0 is at the end of the line, 1 is before the last character, etc.
         let cursor = 0;
 
         const onData = (data: string) => {
           switch (data) {
-            case "\r":
-            case "\n":
-              xterm.write("\r\n");
+            case '\r':
+            case '\n':
+              xterm.write('\r\n');
               offData.dispose();
               xterm.options.cursorBlink = false;
               resolve(input);
               break;
-            case "\u007F":
+            case '\u007F':
               // Handle backspace
               if (input.length > 0 && cursor < input.length) {
                 // Remove character before the cursor
                 const beforeCursor = input.slice(0, input.length - cursor - 1);
                 const afterCursor = input.slice(input.length - cursor);
                 input = beforeCursor + afterCursor;
-                xterm.write("\b \b");
-                xterm.write("\x1b[s"); // Save cursor position
-                xterm.write("\x1b[K"); // Clear to end of line
+                xterm.write('\b \b');
+                xterm.write('\x1b[s'); // Save cursor position
+                xterm.write('\x1b[K'); // Clear to end of line
                 xterm.write(afterCursor);
-                xterm.write("\x1b[u"); // Restore cursor position
+                xterm.write('\x1b[u'); // Restore cursor position
               }
               break;
-            case "\x1b[3~":
+            case '\x1b[3~':
               // Handle Delete key
               if (input.length > 0 && cursor > 0) {
                 // Remove character at the cursor
@@ -141,64 +146,64 @@ async function setupPyodide(
                 const afterCursor = input.slice(input.length - cursor + 1);
                 input = beforeCursor + afterCursor;
                 // Redraw the line from the cursor position
-                xterm.write("\x1b[s"); // Save cursor position
-                xterm.write("\x1b[K"); // Clear to end of line
+                xterm.write('\x1b[s'); // Save cursor position
+                xterm.write('\x1b[K'); // Clear to end of line
                 xterm.write(afterCursor);
-                xterm.write("\x1b[u"); // Restore cursor position
+                xterm.write('\x1b[u'); // Restore cursor position
                 cursor--;
               }
               break;
-            case "\u0003":
+            case '\u0003':
               // Handle Ctrl+C
               offData.dispose();
-              xterm.write("^C\r\n");
+              xterm.write('^C\r\n');
               xterm.options.cursorBlink = false;
-              resolve(new Error("KeyboardInterrupt"));
+              resolve(new Error('KeyboardInterrupt'));
               break;
-            case "\u0004":
+            case '\u0004':
               // Handle Ctrl+D
               offData.dispose();
-              xterm.write("\r\n");
+              xterm.write('\r\n');
               xterm.options.cursorBlink = false;
-              resolve(new Error("EOFError"));
+              resolve(new Error('EOFError'));
               break;
-            case "\x1b[D":
+            case '\x1b[D':
               // Left arrow
               if (cursor < input.length) {
-                xterm.write("\x1b[D");
+                xterm.write('\x1b[D');
                 cursor++;
               }
               break;
-            case "\x1b[C":
+            case '\x1b[C':
               // Right arrow
               if (cursor > 0) {
-                xterm.write("\x1b[C");
+                xterm.write('\x1b[C');
                 cursor--;
               }
               break;
-            case "\x1b[A":
-            case "\x1b[B":
+            case '\x1b[A':
+            case '\x1b[B':
               // Up and Down arrows - ignore
               break;
-            case "\x1b[H":
-            case "\x1b[1~":
+            case '\x1b[H':
+            case '\x1b[1~':
               // Home key - move cursor to start of line
               while (cursor < input.length) {
-                xterm.write("\x1b[D");
+                xterm.write('\x1b[D');
                 cursor++;
               }
               break;
-            case "\x1b[F":
-            case "\x1b[4~":
+            case '\x1b[F':
+            case '\x1b[4~':
               // End key - move cursor to end of line
               while (cursor > 0) {
-                xterm.write("\x1b[C");
+                xterm.write('\x1b[C');
                 cursor--;
               }
               break;
             default:
               // Ignore other control characters
-              if (data < " " || data === "\x7F") {
+              if (data < ' ' || data === '\x7F') {
                 return;
               }
               // Regular character input
@@ -207,9 +212,9 @@ async function setupPyodide(
                 data +
                 input.slice(input.length - cursor);
               // Redraw the line from the cursor position
-              xterm.write("\x1b[s"); // Save cursor position
+              xterm.write('\x1b[s'); // Save cursor position
               xterm.write(input.slice(input.length - cursor - data.length));
-              xterm.write("\x1b[u"); // Restore cursor position
+              xterm.write('\x1b[u'); // Restore cursor position
               xterm.write(`\x1b[C`); // Move cursor to correct position
               break;
           }
@@ -233,14 +238,14 @@ async function setupPyodide(
 }
 
 type HintingFunc = (
-  frame: PyProxy
+  frame: PyProxy,
 ) => [line: number, col: number, varname: string, valueStr: string][];
 
 let setupHintingFunc: ((source: string) => HintingFunc) | null = null;
 
 export function setupHinting(source: string): HintingFunc | null {
   if (!setupHintingFunc) {
-    throw new Error("AST utils not loaded yet.");
+    throw new Error('AST utils not loaded yet.');
   }
   const func = setupHintingFunc!(source);
   return (frame: PyProxy) => {
@@ -251,11 +256,11 @@ export function setupHinting(source: string): HintingFunc | null {
 
 export async function runPythonCode(
   code: string,
-  filename: string
+  filename: string,
 ): Promise<void> {
   const py = getPyodide();
   if (!py) {
-    throw new Error("Pyodide is not loaded.");
+    throw new Error('Pyodide is not loaded.');
   }
   await py.runPythonAsync(code, {
     globals: py.toPy({
@@ -265,12 +270,16 @@ export async function runPythonCode(
   });
 }
 
-type DebugCallback = (frame: PyProxy, event: string, arg: any) => Promise<void | true>;
+type DebugCallback = (
+  frame: PyProxy,
+  event: string,
+  arg: any,
+) => Promise<void | true>;
 
 async function setupDebugging(
   py: PyodideAPI,
   filename: string,
-  cb: DebugCallback
+  cb: DebugCallback,
 ) {
   await py.runPythonAsync(
     `
@@ -300,27 +309,27 @@ sys.settrace(trace_cb(js__cb))
         ...py.globals.toJs(),
       }),
       locals: py.toPy({ js__cb: cb }),
-    }
+    },
   );
 }
 
 async function clearDebugging(py: PyodideAPI) {
-  py.pyimport("sys").settrace(undefined);
+  py.pyimport('sys').settrace(undefined);
 }
 
 export async function debugPythonCode(
   code: string,
   filename: string,
-  pauseCallback: DebugCallback
+  pauseCallback: DebugCallback,
 ): Promise<void> {
   const py = getPyodide();
   if (!py) {
-    throw new Error("Pyodide is not loaded.");
+    throw new Error('Pyodide is not loaded.');
   }
 
   try {
     await setupDebugging(py, filename, pauseCallback);
-    await py.runPythonAsync(code + "\na = 1", {
+    await py.runPythonAsync(code + '\na = 1', {
       globals: py.toPy({
         ...py.globals.toJs(),
       }),
