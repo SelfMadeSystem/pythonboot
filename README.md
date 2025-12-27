@@ -6,6 +6,8 @@ An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor 
 
 - [x] Write and execute Python code directly in your browser.
 - [x] Step through your code with a built-in debugger.
+- [ ] REPL
+  - You can call `code.interact()` to drop into a REPL, but it takes over the entire terminal and you can't run further code until you exit the REPL.
 - [x] Syntax highlighting
 - [ ] Code autocompletion
 - [x] Variable inspection
@@ -16,7 +18,9 @@ An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor 
 - [x] File system access
   - Only what Pyodide has by default
 - [ ] Package management (might work, just haven't tested it)
-- [ ] Canvas support (primarily for turtle graphics)
+- [x] Canvas support (primarily for turtle graphics)
+  - [x] Custom-built turtle graphics. Not complete yet
+  - [ ] pixels canvas
 - [ ] Custom websites with embedded Python code
 - [x] Persistence
 - [ ] Save and load code snippets
