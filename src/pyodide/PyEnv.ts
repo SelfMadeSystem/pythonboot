@@ -9,6 +9,21 @@ import type { Terminal } from 'xterm';
 export const HOME = '/home/pyboot/';
 
 let pyodide: PyodideAPI | null = null;
+const pyodideCbs: ((pyodide: PyodideAPI) => void)[] = [];
+
+export function getPyodide(): PyodideAPI | null {
+  return pyodide;
+}
+
+export async function waitForPyodide(): Promise<PyodideAPI> {
+  if (pyodide) {
+    return pyodide;
+  }
+
+  return new Promise<PyodideAPI>(resolve => {
+    pyodideCbs.push(resolve);
+  });
+}
 
 async function runPySrcOrFetch(
   src: string,
@@ -42,11 +57,10 @@ export async function createPyodide(
     });
 
     await setupPyodide(pyodide, xtermRef);
-  }
-  return pyodide;
-}
 
-export function getPyodide(): PyodideAPI | null {
+    pyodideCbs.forEach(cb => cb(pyodide!));
+    pyodideCbs.length = 0;
+  }
   return pyodide;
 }
 

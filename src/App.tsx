@@ -4,7 +4,7 @@ import { type HighlightRange, MonacoEditor } from './monaco/MonacoEditor';
 import { syncMonacoToPyodide } from './monaco/MonacoStore';
 import { createPyodide, debugPythonCode, runPythonCode } from './pyodide/PyEnv';
 import { SYM_NIL, normalizeNewlines } from './utils';
-import { XTerminal } from './xterm/XTerminal';
+import { Views } from './views/Views';
 import type { PyodideAPI } from 'pyodide';
 import type { PyProxy } from 'pyodide/ffi';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -165,7 +165,7 @@ export function App() {
       }}
     >
       <div
-        className="relative"
+        className="relative overflow-hidden"
         style={{
           height: `${split * 100}vh`,
         }}
@@ -236,7 +236,7 @@ export function App() {
           height: `${(1 - split) * 100}vh`,
         }}
       >
-        <XTerminal split={split} xtermRef={xtermRef} />
+        <Views split={split} outTermRef={xtermRef} />
       </div>
     </div>
   );

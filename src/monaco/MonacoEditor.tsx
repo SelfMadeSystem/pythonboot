@@ -34,6 +34,7 @@ export function MonacoEditor({
   setModel: (model: m.editor.ITextModel) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const monacoDivRef = useRef<HTMLDivElement>(null);
   const [editor, setEditor] = useState<m.editor.IStandaloneCodeEditor | null>(
     null,
   );
@@ -41,9 +42,9 @@ export function MonacoEditor({
     useRef<m.editor.IEditorDecorationsCollection | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || editor) return;
+    if (!monacoDivRef.current || editor) return;
 
-    createEditorInstance(containerRef.current, () => {
+    createEditorInstance(monacoDivRef.current, () => {
       return {
         rulers: [80],
         // automaticLayout: true,
@@ -54,15 +55,16 @@ export function MonacoEditor({
       ed.setModel(null);
       const ro = new window.ResizeObserver(() => {
         requestAnimationFrame(() => {
+          const tabsDiv = containerRef.current!.querySelector(".monaco-tabs")!;
           ed.layout({
             width: containerRef.current!.clientWidth,
-            height: containerRef.current!.clientHeight,
+            height: containerRef.current!.clientHeight - tabsDiv.clientHeight,
           });
         });
       });
       ro.observe(containerRef.current!);
     });
-  }, [containerRef, editor]);
+  }, [editor]);
 
   useEffect(() => {
     const monaco = getMonacoInstance();
@@ -191,7 +193,7 @@ export function MonacoEditor({
   }, [highlight, frame, editor, model]);
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full w-full flex-col" ref={containerRef}>
       <MonacoTabs
         model={model}
         setModel={model => {
@@ -202,7 +204,7 @@ export function MonacoEditor({
         }}
         editor={editor}
       />
-      <div className="h-full w-full" ref={containerRef} />
+      <div className="h-full w-full" ref={monacoDivRef} />
     </div>
   );
 }

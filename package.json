@@ -13,6 +13,7 @@
   "dependencies": {
     "@monaco-editor/loader": "^1.7.0",
     "bun-plugin-tailwind": "^0.1.2",
+    "clsx": "^2.1.1",
     "monaco-editor": "^0.55.1",
     "pyodide": "^0.29.0",
     "react": "^19",

@@ -226,7 +226,7 @@ export function MonacoTabs({
   };
 
   return (
-    <div className="relative flex w-full items-center border-b border-gray-300 text-white">
+    <div className="monaco-tabs relative flex w-full items-center border-b border-gray-300 text-white">
       {tabs.map((tab, index) => (
         <button
           key={index}
