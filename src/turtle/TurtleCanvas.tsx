@@ -40,7 +40,7 @@ export function TurtleCanvas() {
     return () => {
       observer.disconnect();
     };
-  }, [turtleCanvas, drawCanvas]);
+  }, [gridCanvas, turtleCanvas, drawCanvas]);
   
   return (
     <div className="relative w-full h-full bg-white">
