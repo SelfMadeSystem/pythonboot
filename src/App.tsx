@@ -22,6 +22,7 @@ export function App() {
   const [frame, setFrame] = useState<PyProxy | null>(null);
   const [loadedValue, setLoadedValue] = useState<unknown>(SYM_NIL);
   const [running, setRunning] = useState(false);
+  const interruptBuffer = useRef<[number]>([0]);
   const xtermRef = useRef<Terminal>(null);
 
   useEffect(() => {
@@ -53,83 +54,88 @@ export function App() {
       const lines = code.split('\n').length;
 
       const promise = debug
-        ? debugPythonCode(code, filename, (frame, event) => {
-            const line = frame.f_lineno;
-            if (line > lines || line < 1) {
-              return Promise.resolve();
-            }
-            if (event !== 'opcode') {
-              return Promise.resolve();
-            }
-
-            const code = frame.f_code.co_code;
-            const lasti = frame.f_lasti;
-            const positions = [...frame.f_code.co_positions()];
-
-            const instrIndex = Math.floor(lasti / 2);
-            const arg = frame.f_code.co_code[lasti + 1];
-
-            const [startLine, endLine, startCol, endCol] = positions[
-              instrIndex
-            ] || [null, null, null, null];
-
-            let loadedValue: unknown = SYM_NIL;
-
-            const opcode = code[lasti];
-            const opname = pyodide.pyimport('dis').opname[opcode];
-
-            switch (opname) {
-              // opcodes we don't need to handle
-              case 'NOP':
-              case 'POP_TOP':
-              case 'RETURN_VALUE':
-              case 'PUSH_NULL':
+        ? debugPythonCode(
+            code,
+            filename,
+            (frame, event) => {
+              const line = frame.f_lineno;
+              if (line > lines || line < 1) {
                 return Promise.resolve();
-              case 'LOAD_CONST':
-                loadedValue = frame.f_code.co_consts[arg];
-                break;
-              case 'LOAD_NAME':
-                const name = frame.f_code.co_names[arg];
-                if (name in frame.f_locals) {
-                  loadedValue = frame.f_locals[name];
-                } else if (name in frame.f_globals) {
-                  loadedValue = frame.f_globals[name];
-                } else if (name in frame.f_builtins) {
-                  loadedValue = frame.f_builtins[name];
-                }
-                break;
-            }
+              }
+              if (event !== 'opcode') {
+                return Promise.resolve();
+              }
 
-            const newHighlight: HighlightRange = {
-              startLine: startLine || line,
-              endLine: endLine || line,
-              startColumn: (startCol || 0) + 1,
-              endColumn: (endCol || 0) + 1,
-            };
+              const code = frame.f_code.co_code;
+              const lasti = frame.f_lasti;
+              const positions = [...frame.f_code.co_positions()];
 
-            // if the new highlight is the same as the current one, just continue
-            if (
-              highlightRef.current &&
-              newHighlight.startLine === highlightRef.current.startLine &&
-              newHighlight.endLine === highlightRef.current.endLine &&
-              'startColumn' in highlightRef.current &&
-              newHighlight.startColumn === highlightRef.current.startColumn &&
-              newHighlight.endColumn === highlightRef.current.endColumn
-            ) {
-              return Promise.resolve();
-            }
+              const instrIndex = Math.floor(lasti / 2);
+              const arg = frame.f_code.co_code[lasti + 1];
 
-            setFrame(frame.copy());
-            setLoadedValue(() => loadedValue);
-            setHighlight((highlightRef.current = newHighlight));
-            // return Promise.resolve();
-            return new Promise<void | true>(resolve => {
-              setDebugCb(() => (stopDebug: undefined | true = undefined) => {
-                resolve(stopDebug);
+              const [startLine, endLine, startCol, endCol] = positions[
+                instrIndex
+              ] || [null, null, null, null];
+
+              let loadedValue: unknown = SYM_NIL;
+
+              const opcode = code[lasti];
+              const opname = pyodide.pyimport('dis').opname[opcode];
+
+              switch (opname) {
+                // opcodes we don't need to handle
+                case 'NOP':
+                case 'POP_TOP':
+                case 'RETURN_VALUE':
+                case 'PUSH_NULL':
+                  return Promise.resolve();
+                case 'LOAD_CONST':
+                  loadedValue = frame.f_code.co_consts[arg];
+                  break;
+                case 'LOAD_NAME':
+                  const name = frame.f_code.co_names[arg];
+                  if (name in frame.f_locals) {
+                    loadedValue = frame.f_locals[name];
+                  } else if (name in frame.f_globals) {
+                    loadedValue = frame.f_globals[name];
+                  } else if (name in frame.f_builtins) {
+                    loadedValue = frame.f_builtins[name];
+                  }
+                  break;
+              }
+
+              const newHighlight: HighlightRange = {
+                startLine: startLine || line,
+                endLine: endLine || line,
+                startColumn: (startCol || 0) + 1,
+                endColumn: (endCol || 0) + 1,
+              };
+
+              // if the new highlight is the same as the current one, just continue
+              if (
+                highlightRef.current &&
+                newHighlight.startLine === highlightRef.current.startLine &&
+                newHighlight.endLine === highlightRef.current.endLine &&
+                'startColumn' in highlightRef.current &&
+                newHighlight.startColumn === highlightRef.current.startColumn &&
+                newHighlight.endColumn === highlightRef.current.endColumn
+              ) {
+                return Promise.resolve();
+              }
+
+              setFrame(frame.copy());
+              setLoadedValue(() => loadedValue);
+              setHighlight((highlightRef.current = newHighlight));
+              // return Promise.resolve();
+              return new Promise<void | true>(resolve => {
+                setDebugCb(() => (stopDebug: undefined | true = undefined) => {
+                  resolve(stopDebug);
+                });
               });
-            });
-          })
-        : runPythonCode(code, filename);
+            },
+            interruptBuffer.current,
+          )
+        : runPythonCode(code, filename, interruptBuffer.current);
       try {
         await promise.catch(error => {
           const xterm = xtermRef.current;
@@ -184,14 +190,22 @@ export function App() {
             onClick={() => {
               if (debugCb) {
                 debugCb(true);
+                setDebugCb(null);
+                setHighlight((highlightRef.current = null));
+                setFrame(null);
+                setLoadedValue(SYM_NIL);
+                return;
+              }
+              if (running) {
+                // Signal interrupt
+                interruptBuffer.current[0] = 1;
                 return;
               }
               if (!model) return;
               runCode(model, false);
             }}
-            disabled={running && !debugCb}
           >
-            Run
+            {running && !debugCb ? 'Stop' : 'Run'}
           </button>
           <button
             className="cursor-pointer rounded bg-green-600 px-3 py-1 font-bold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"

@@ -1,5 +1,6 @@
 import astUtilsSrc from './astUtils.py' with { type: 'text' };
 import inputsSrc from './inputs.py' with { type: 'text' };
+import traceSrc from './trace.py' with { type: 'text' };
 import { normalizeNewlines } from '@/utils';
 import { type PyodideAPI, loadPyodide } from 'pyodide';
 import type { PyProxy } from 'pyodide/ffi';
@@ -10,6 +11,8 @@ export const HOME = '/home/pyboot/';
 
 let pyodide: PyodideAPI | null = null;
 const pyodideCbs: ((pyodide: PyodideAPI) => void)[] = [];
+let normalTrace: ((filename: string, interruptBuffer: {0: number}) => PyProxy) | null = null;
+let debugTrace: ((cb: Function, filename: string, interruptBuffer: {0: number}) => PyProxy) | null = null;
 
 export function getPyodide(): PyodideAPI | null {
   return pyodide;
@@ -249,6 +252,12 @@ async function setupPyodide(
       ...py.globals.toJs(),
     }),
   })) as (source: string) => HintingFunc;
+
+  [normalTrace, debugTrace] = (await runPySrcOrFetch(traceSrc, {
+    globals: py.toPy({
+      ...py.globals.toJs(),
+    }),
+  })) as any; // can't be arsed to type this properly
 }
 
 type HintingFunc = (
@@ -268,14 +277,38 @@ export function setupHinting(source: string): HintingFunc | null {
   };
 }
 
+async function setupNormalTracing(
+  py: PyodideAPI,
+  filename: string,
+  interruptBuffer: { '0': number },
+) {
+  await py.runPythonAsync(
+    `
+import sys
+
+sys.settrace(trace_cb)
+`,
+    {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
+      locals: py.toPy({ 
+        trace_cb: normalTrace!(filename, interruptBuffer),
+      }),
+    },
+  );
+}
+
 export async function runPythonCode(
   code: string,
   filename: string,
+  interruptBuffer: { '0': number },
 ): Promise<void> {
   const py = getPyodide();
   if (!py) {
     throw new Error('Pyodide is not loaded.');
   }
+  await setupNormalTracing(py, filename, interruptBuffer);
   await py.runPythonAsync(code, {
     globals: py.toPy({
       ...py.globals.toJs(),
@@ -294,35 +327,21 @@ async function setupDebugging(
   py: PyodideAPI,
   filename: string,
   cb: DebugCallback,
+  interruptBuffer: { '0': number },
 ) {
   await py.runPythonAsync(
     `
 import sys
 
-def trace_cb(js__cb):
-    def dostuff(frame, event, arg):
-        import js
-        import sys
-        frame.f_trace_opcodes = True
-        line_no = frame.f_lineno
-        filename = frame.f_code.co_filename
-        # Only pause for the target script
-        if filename != "${filename}":
-            return dostuff
-        result = js.wait_for_js_promise(js__cb(frame, event, arg))
-        if result is True:
-            sys.settrace(None)
-            return None
-        return dostuff
-    return dostuff
-
-sys.settrace(trace_cb(js__cb))
+sys.settrace(trace_cb)
 `,
     {
       globals: py.toPy({
         ...py.globals.toJs(),
       }),
-      locals: py.toPy({ js__cb: cb }),
+      locals: py.toPy({ 
+        trace_cb: debugTrace!(cb, filename, interruptBuffer),
+      }),
     },
   );
 }
@@ -335,6 +354,7 @@ export async function debugPythonCode(
   code: string,
   filename: string,
   pauseCallback: DebugCallback,
+  interruptBuffer: { '0': number },
 ): Promise<void> {
   const py = getPyodide();
   if (!py) {
@@ -342,7 +362,7 @@ export async function debugPythonCode(
   }
 
   try {
-    await setupDebugging(py, filename, pauseCallback);
+    await setupDebugging(py, filename, pauseCallback, interruptBuffer);
     await py.runPythonAsync(code + '\na = 1', {
       globals: py.toPy({
         ...py.globals.toJs(),
