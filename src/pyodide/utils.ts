@@ -33,10 +33,10 @@ export function syntaxErrorHighlightRange(
 ): HighlightRange {
   if (
     !syntaxError ||
-    !("lineno" in syntaxError) ||
-    !("end_lineno" in syntaxError) ||
-    !("offset" in syntaxError) ||
-    !("end_offset" in syntaxError) ||
+    !('lineno' in syntaxError) ||
+    !('end_lineno' in syntaxError) ||
+    !('offset' in syntaxError) ||
+    !('end_offset' in syntaxError) ||
     typeof syntaxError.lineno !== 'number' ||
     typeof syntaxError.offset !== 'number' ||
     typeof syntaxError.end_lineno !== 'number' ||

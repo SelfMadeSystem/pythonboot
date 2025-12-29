@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { TurtleHandler } from "./TurtleHandler";
-import { waitForPyodide } from "@/pyodide/PyEnv";
+import { TurtleHandler } from './TurtleHandler';
+import { waitForPyodide } from '@/pyodide/PyEnv';
+import { useEffect, useRef, useState } from 'react';
 
 export function TurtleCanvas() {
   const [gridCanvas, setGridCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [turtleCanvas, setTurtleCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [turtleCanvas, setTurtleCanvas] = useState<HTMLCanvasElement | null>(
+    null,
+  );
   const [drawCanvas, setDrawCanvas] = useState<HTMLCanvasElement | null>(null);
   const turtleHandlerRef = useRef<TurtleHandler | null>(null);
 
@@ -19,7 +21,7 @@ export function TurtleCanvas() {
     };
 
     resizeCanvases();
-    
+
     const observer = new ResizeObserver(() => {
       resizeCanvases();
     });
@@ -41,12 +43,12 @@ export function TurtleCanvas() {
       observer.disconnect();
     };
   }, [gridCanvas, turtleCanvas, drawCanvas]);
-  
+
   return (
-    <div className="relative w-full h-full bg-white">
+    <div className="relative h-full w-full bg-white">
       <canvas
         ref={setGridCanvas}
-        className="absolute top-0 left-0 w-full h-full"
+        className="absolute top-0 left-0 h-full w-full"
       />
       <canvas
         ref={setDrawCanvas}
@@ -54,7 +56,7 @@ export function TurtleCanvas() {
       />
       <canvas
         ref={setTurtleCanvas}
-        className="absolute top-0 left-0 w-full h-full"
+        className="absolute top-0 left-0 h-full w-full"
       />
     </div>
   );

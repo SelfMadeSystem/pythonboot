@@ -3,7 +3,10 @@ import './index.css';
 import { type HighlightRange, MonacoEditor } from './monaco/MonacoEditor';
 import { syncMonacoToPyodide } from './monaco/MonacoStore';
 import { createPyodide, debugPythonCode, runPythonCode } from './pyodide/PyEnv';
-import { frameHighlightRange, syntaxErrorHighlightRange } from './pyodide/utils';
+import {
+  frameHighlightRange,
+  syntaxErrorHighlightRange,
+} from './pyodide/utils';
 import { SYM_NIL, normalizeNewlines } from './utils';
 import { Views } from './views/Views';
 import type { PyodideAPI } from 'pyodide';
@@ -166,7 +169,8 @@ while tb.tb_next:
             )
             .toJs();
 
-          const highlight = (syntaxErrorHighlightRange(err) ?? frameHighlightRange(traceback.tb_frame))!;
+          const highlight = (syntaxErrorHighlightRange(err) ??
+            frameHighlightRange(traceback.tb_frame))!;
 
           setEditorError({
             message: msg.join('') as string,

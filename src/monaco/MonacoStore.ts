@@ -81,7 +81,7 @@ export function syncMonacoToPyodide() {
   const models = monaco.editor.getModels();
 
   for (const model of models) {
-    const path = HOME + "/" + model.uri.fsPath;
+    const path = HOME + '/' + model.uri.fsPath;
     const content = model.getValue();
 
     if (pyodide.FS.analyzePath(path).exists) {
