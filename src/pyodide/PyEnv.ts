@@ -7,12 +7,20 @@ import type { PyProxy } from 'pyodide/ffi';
 import type { RefObject } from 'react';
 import type { Terminal } from 'xterm';
 
-export const HOME = '/home/pyboot/';
+export const HOME = '/home/pyboot';
 
 let pyodide: PyodideAPI | null = null;
 const pyodideCbs: ((pyodide: PyodideAPI) => void)[] = [];
-let normalTrace: ((filename: string, interruptBuffer: {0: number}) => PyProxy) | null = null;
-let debugTrace: ((cb: Function, filename: string, interruptBuffer: {0: number}) => PyProxy) | null = null;
+let normalTrace:
+  | ((filename: string, interruptBuffer: { 0: number }) => PyProxy)
+  | null = null;
+let debugTrace:
+  | ((
+      cb: Function,
+      filename: string,
+      interruptBuffer: { 0: number },
+    ) => PyProxy)
+  | null = null;
 
 export function getPyodide(): PyodideAPI | null {
   return pyodide;
@@ -292,7 +300,7 @@ sys.settrace(trace_cb)
       globals: py.toPy({
         ...py.globals.toJs(),
       }),
-      locals: py.toPy({ 
+      locals: py.toPy({
         trace_cb: normalTrace!(filename, interruptBuffer),
       }),
     },
@@ -313,7 +321,7 @@ export async function runPythonCode(
     globals: py.toPy({
       ...py.globals.toJs(),
     }),
-    filename,
+    filename: HOME + filename,
   });
 }
 
@@ -339,7 +347,7 @@ sys.settrace(trace_cb)
       globals: py.toPy({
         ...py.globals.toJs(),
       }),
-      locals: py.toPy({ 
+      locals: py.toPy({
         trace_cb: debugTrace!(cb, filename, interruptBuffer),
       }),
     },
@@ -362,12 +370,12 @@ export async function debugPythonCode(
   }
 
   try {
-    await setupDebugging(py, filename, pauseCallback, interruptBuffer);
+    await setupDebugging(py, HOME + filename, pauseCallback, interruptBuffer);
     await py.runPythonAsync(code + '\na = 1', {
       globals: py.toPy({
         ...py.globals.toJs(),
       }),
-      filename,
+      filename: HOME + filename,
     });
   } finally {
     await clearDebugging(py);

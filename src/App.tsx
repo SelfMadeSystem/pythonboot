@@ -3,6 +3,7 @@ import './index.css';
 import { type HighlightRange, MonacoEditor } from './monaco/MonacoEditor';
 import { syncMonacoToPyodide } from './monaco/MonacoStore';
 import { createPyodide, debugPythonCode, runPythonCode } from './pyodide/PyEnv';
+import { frameHighlightRange, syntaxErrorHighlightRange } from './pyodide/utils';
 import { SYM_NIL, normalizeNewlines } from './utils';
 import { Views } from './views/Views';
 import type { PyodideAPI } from 'pyodide';
@@ -12,6 +13,13 @@ import type { Terminal } from 'xterm';
 
 export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
+  const [editorError, setEditorError] = useState<{
+    message: string;
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  } | null>(null);
   const [split, setSplit] = useState(0.5);
   const [pyodide, setPyodide] = useState<PyodideAPI | null>(null);
   const [debugCb, setDebugCb] = useState<((stopDebug?: true) => void) | null>(
@@ -47,6 +55,7 @@ export function App() {
       syncMonacoToPyodide();
 
       setRunning(true);
+      setEditorError(null); // Clear error before running
 
       const code = model.getValue();
       const filename = model.uri.path || 'script.py';
@@ -66,21 +75,17 @@ export function App() {
                 return Promise.resolve();
               }
 
-              const code = frame.f_code.co_code;
               const lasti = frame.f_lasti;
-              const positions = [...frame.f_code.co_positions()];
-
-              const instrIndex = Math.floor(lasti / 2);
               const arg = frame.f_code.co_code[lasti + 1];
-
-              const [startLine, endLine, startCol, endCol] = positions[
-                instrIndex
-              ] || [null, null, null, null];
 
               let loadedValue: unknown = SYM_NIL;
 
               const opcode = code[lasti];
-              const opname = pyodide.pyimport('dis').opname[opcode];
+              const opnameArr = pyodide.pyimport('dis').opname;
+              const opname =
+                typeof opcode === 'number' && Array.isArray(opnameArr)
+                  ? opnameArr[opcode]
+                  : undefined;
 
               switch (opname) {
                 // opcodes we don't need to handle
@@ -104,21 +109,20 @@ export function App() {
                   break;
               }
 
-              const newHighlight: HighlightRange = {
-                startLine: startLine || line,
-                endLine: endLine || line,
-                startColumn: (startCol || 0) + 1,
-                endColumn: (endCol || 0) + 1,
-              };
+              const newHighlight: HighlightRange = frameHighlightRange(frame);
 
               // if the new highlight is the same as the current one, just continue
               if (
                 highlightRef.current &&
+                newHighlight &&
                 newHighlight.startLine === highlightRef.current.startLine &&
                 newHighlight.endLine === highlightRef.current.endLine &&
-                'startColumn' in highlightRef.current &&
-                newHighlight.startColumn === highlightRef.current.startColumn &&
-                newHighlight.endColumn === highlightRef.current.endColumn
+                ('startColumn' in highlightRef.current
+                  ? 'startColumn' in newHighlight &&
+                    newHighlight.startColumn ===
+                      highlightRef.current.startColumn &&
+                    newHighlight.endColumn === highlightRef.current.endColumn
+                  : true)
               ) {
                 return Promise.resolve();
               }
@@ -143,14 +147,37 @@ export function App() {
             console.warn('XTerm is not available.');
             return;
           }
-          let output = '';
-          if (error && typeof error.message === 'string') {
-            // Filter out Pyodide internals and JS wrapper
-            output = error.message;
-          } else {
-            output = String(error);
-          }
-          xterm.write(`\x1b[31m${normalizeNewlines(output)}\x1b[0m`);
+
+          const [msg, traceback, err] = pyodide
+            .runPython(
+              `
+import sys, traceback
+exc = sys.last_exc
+tb = exc.__traceback__
+skip = 3 if isinstance(exc, SyntaxError) else 2
+for _ in range(skip):
+    if tb and tb.tb_next:
+        tb = tb.tb_next
+fmt = traceback.format_exception(type(exc), exc, tb)
+while tb.tb_next:
+    tb = tb.tb_next
+(fmt, tb, exc)
+`,
+            )
+            .toJs();
+
+          const highlight = (syntaxErrorHighlightRange(err) ?? frameHighlightRange(traceback.tb_frame))!;
+
+          setEditorError({
+            message: msg.join('') as string,
+            ...highlight,
+            startColumn: 'startColumn' in highlight ? highlight.startColumn : 1,
+            endColumn: 'endColumn' in highlight ? highlight.endColumn : 999999,
+          });
+          xterm.write(`\x1b[31m${normalizeNewlines(msg.join(''))}\x1b[0m`);
+
+          traceback.destroy();
+          err.destroy();
         });
       } finally {
         setRunning(false);
@@ -182,6 +209,7 @@ export function App() {
           loadedValue={loadedValue}
           model={model}
           setModel={setModel}
+          error={editorError}
         />
 
         <div className="absolute top-2 right-2 z-10 flex gap-2">

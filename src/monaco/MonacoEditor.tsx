@@ -26,12 +26,20 @@ export function MonacoEditor({
   loadedValue,
   model,
   setModel,
+  error,
 }: {
   highlight: HighlightRange;
   frame: PyProxy | null;
   loadedValue: unknown;
   model: m.editor.ITextModel | null;
   setModel: (model: m.editor.ITextModel) => void;
+  error?: {
+    message: string;
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  } | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const monacoDivRef = useRef<HTMLDivElement>(null);
@@ -55,7 +63,7 @@ export function MonacoEditor({
       ed.setModel(null);
       const ro = new window.ResizeObserver(() => {
         requestAnimationFrame(() => {
-          const tabsDiv = containerRef.current!.querySelector(".monaco-tabs")!;
+          const tabsDiv = containerRef.current!.querySelector('.monaco-tabs')!;
           ed.layout({
             width: containerRef.current!.clientWidth,
             height: containerRef.current!.clientHeight - tabsDiv.clientHeight,
@@ -191,6 +199,25 @@ export function MonacoEditor({
 
     valueHintDecorationsRef.current = editor.createDecorationsCollection(hints);
   }, [highlight, frame, editor, model]);
+
+  useEffect(() => {
+    const monaco = getMonacoInstance();
+    if (!model || !monaco) return;
+    if (!error) {
+      monaco.editor.setModelMarkers(model, 'owner', []);
+      return;
+    }
+    monaco.editor.setModelMarkers(model, 'owner', [
+      {
+        severity: monaco.MarkerSeverity.Error,
+        message: error.message,
+        startLineNumber: error.startLine,
+        startColumn: error.startColumn,
+        endLineNumber: error.endLine,
+        endColumn: error.endColumn,
+      },
+    ]);
+  }, [error, model]);
 
   return (
     <div className="flex h-full w-full flex-col" ref={containerRef}>
