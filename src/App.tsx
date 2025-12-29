@@ -166,6 +166,11 @@ while tb.tb_next:
     tb = tb.tb_next
 (fmt, tb, exc)
 `,
+              {
+                globals: pyodide.toPy({
+                  ...pyodide.globals.toJs(),
+                }),
+              },
             )
             .toJs();
 
