@@ -28,4 +28,26 @@ An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor 
 - [ ] Theme support (light/dark mode, currently only dark mode is available)
 - [ ] Documentation
 
-Mobile support probably won't be a thing due to Monaco Editor's limitations on mobile devices.
+## Known Problems and Limitations
+
+- Mobile support probably won't be a thing due to Monaco Editor's limitations on mobile devices.
+- Variable inline hints aren't accurate with different scopes (e.g. inside functions or loops).
+- Any stdin input other than `input()` function will not work properly.
+- Some libraries that require system-level access or have C extensions may not work properly in Pyodide.
+- Takes ~5 seconds to load Pyodide and initialize the environment (on my relatively strong laptop). Unsure if this can be improved.
+- Syntax errors has one too many stack frames shown that I'm too lazy to fix right now.
+
+## Contact
+
+If you have any questions, suggestions, or issues, feel free to reach out to me at
+
+- Email: py [at] shoghisimon [dot] ca
+- GitHub: [SelfMadeSystem](https://github.com/SelfMadeSystem) (you're probably already here)
+- Website: [shoghisimon.ca](https://shoghisimon.ca)
+- Discord: `selfmadesystem`
+
+## License
+
+This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
+
+Note: The GPL only applies to the code in this repository. Code written by users using this tool is not subject to the GPL.
