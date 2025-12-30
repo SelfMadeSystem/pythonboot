@@ -13,6 +13,10 @@ def normal_trace(filename, interrupt_buffer):
 
 # Debug callback for sys.settrace
 def debug_trace(jscb, filename, interrupt_buffer):
+    import js
+    if not "wait_for_js_promise" in js.object_keys():
+        print("\x1b[33mWarning: Your browser does not support WebAssembly JavaScript Promise Integration. Debugging has been disabled.\x1b[0m")
+        return normal_trace(filename, interrupt_buffer)
     def trace(frame, event, arg):
         import js
         import sys

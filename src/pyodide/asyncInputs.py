@@ -1,7 +1,6 @@
 import js
 import xterm
 import asyncio
-from _sitebuiltins import _Printer
 
 class XTermInput:
     def __call__(self, prompt=""):
@@ -21,29 +20,8 @@ class XTermInput:
     def __str__(self):
         return "<built-in function input>"
 
-def xterm_clear():
-    xterm_instance = xterm.getXTerm()
-    if xterm_instance:
-        xterm_instance.clear()
-
 def wait_for_js_promise(promise):
     return asyncio.get_event_loop().run_until_complete(promise)
 
 __builtins__.input = XTermInput()
-__builtins__.clear = xterm_clear
-__builtins__.copyright = _Printer("copyright", f"""Copyright (c) 2025 Shoghi Simon
-All Rights Reserved.
-
-{copyright}""")
-__builtins__.credits = _Printer("credits", f"""    Thanks to Pyodide for making this possible.
-    Thanks to UdeM's DIRO for their online Python learning environment
-    which inspired me to make this project.
-{credits}""")
-__builtins__.license = _Printer("license", f"""pythonBoot is licensed under the MIT License.
-
-See https://opensource.org/licenses/MIT for more information.
-
-Python is a trademark of the Python Software Foundation.
-
-{license}""")
 js.wait_for_js_promise = wait_for_js_promise

@@ -1,6 +1,9 @@
 import astUtilsSrc from './astUtils.py' with { type: 'text' };
-import inputsSrc from './inputs.py' with { type: 'text' };
+import asyncInputsSrc from './asyncInputs.py' with { type: 'text' };
+import infoSrc from './info.py' with { type: 'text' };
+import syncInputsSrc from './syncInputs.py' with { type: 'text' };
 import traceSrc from './trace.py' with { type: 'text' };
+import warnJSPISrc from './warnJSPI.py' with { type: 'text' };
 import { normalizeNewlines } from '@/utils';
 import { type PyodideAPI, loadPyodide } from 'pyodide';
 import type { PyProxy } from 'pyodide/ffi';
@@ -250,7 +253,29 @@ async function setupPyodide(
     },
   });
 
-  await runPySrcOrFetch(inputsSrc, {
+  if ('Suspending' in WebAssembly) {
+    // Supports async inputs
+    await runPySrcOrFetch(asyncInputsSrc, {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
+    });
+  } else {
+    // Warn user that async inputs and debugging won't work
+    await runPySrcOrFetch(warnJSPISrc, {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
+    });
+  }
+
+  await runPySrcOrFetch(syncInputsSrc, {
+    globals: py.toPy({
+      ...py.globals.toJs(),
+    }),
+  });
+
+  await runPySrcOrFetch(infoSrc, {
     globals: py.toPy({
       ...py.globals.toJs(),
     }),
