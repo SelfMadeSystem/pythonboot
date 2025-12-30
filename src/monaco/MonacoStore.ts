@@ -52,7 +52,7 @@ export async function createEditorInstance(
   options:
     | m.editor.IStandaloneEditorConstructionOptions
     | ((monaco: typeof m) => m.editor.IStandaloneEditorConstructionOptions),
-): Promise<m.editor.IStandaloneCodeEditor> {
+): Promise<[m.editor.IStandaloneCodeEditor, typeof m]> {
   if (!editorInstance) {
     const monaco = await createMonacoInstance();
     editorInstance = monaco.editor.create(
@@ -64,7 +64,7 @@ export async function createEditorInstance(
       cb(editorInstance!);
     }
   }
-  return editorInstance;
+  return [editorInstance, monacoInstance!];
 }
 
 export function getEditorInstance(): m.editor.IStandaloneCodeEditor | null {

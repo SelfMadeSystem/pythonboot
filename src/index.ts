@@ -15,7 +15,11 @@ const server = serve({
   routes: {
     // Serve index.html for all unmatched routes.
     '/': index,
-    '/pyodide/*': packageRoute('pyodide'),
+    '/pyodide/*': (req: Request) => {
+      const url = new URL(req.url);
+      const filePath = url.pathname.replace(/^\/pyodide\//, '');
+      return new Response(Bun.file(`./public/pyodide/${filePath}`));
+    },
     '/monaco/*': packageRoute('monaco-editor/min'),
   },
 

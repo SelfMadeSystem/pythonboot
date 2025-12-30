@@ -65,6 +65,7 @@ export async function createPyodide(
       env: {
         HOME,
       },
+      packages: ['micropip'],
     });
 
     await setupPyodide(pyodide, xtermRef);
@@ -283,6 +284,37 @@ export function setupHinting(source: string): HintingFunc | null {
     //@ts-expect-error I don't feel like properly typing this
     return func(frame).toJs();
   };
+}
+
+let formatPythonFunc: ((code: string) => Promise<string>) | null = null;
+
+export async function formatPython(code: string): Promise<string> {
+  if (formatPythonFunc) {
+    return formatPythonFunc(code);
+  }
+  const py = getPyodide();
+  if (!py) {
+    throw new Error('Pyodide is not loaded.');
+  }
+  // if black is not loaded yet, load it
+  if (!py.globals.has('black')) {
+    await py.pyimport('micropip').install('black');
+  }
+  const func = await py.runPythonAsync(
+    `
+import black
+def format_code(src: str) -> str:
+    return black.format_str(src, mode=black.FileMode())
+format_code
+`,
+    {
+      globals: py.toPy({
+        ...py.globals.toJs(),
+      }),
+    },
+  );
+  formatPythonFunc = func;
+  return func(code);
 }
 
 async function setupNormalTracing(

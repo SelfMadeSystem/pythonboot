@@ -2,7 +2,7 @@ import type * as m from 'monaco-editor';
 import { createEditorInstance, getMonacoInstance } from './MonacoStore';
 import { MonacoTabs } from './MonacoTabs';
 import './monaco.css';
-import { setupHinting } from '@/pyodide/PyEnv';
+import { formatPython, setupHinting } from '@/pyodide/PyEnv';
 import { SYM_NIL } from '@/utils';
 import type { PyProxy } from 'pyodide/ffi';
 import { useEffect, useRef, useState } from 'react';
@@ -58,7 +58,7 @@ export function MonacoEditor({
         // automaticLayout: true,
         theme: 'vs-dark',
       };
-    }).then(ed => {
+    }).then(([ed, monaco]) => {
       setEditor(ed);
       ed.setModel(null);
       const ro = new window.ResizeObserver(() => {
@@ -71,6 +71,18 @@ export function MonacoEditor({
         });
       });
       ro.observe(containerRef.current!);
+
+      monaco.languages.registerDocumentFormattingEditProvider('python', {
+        provideDocumentFormattingEdits: async (model, options, token) => {
+          const formatted = await formatPython(model.getValue());
+          return [
+            {
+              range: model.getFullModelRange(),
+              text: formatted,
+            },
+          ];
+        },
+      });
     });
   }, [editor]);
 

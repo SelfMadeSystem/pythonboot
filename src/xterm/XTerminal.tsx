@@ -1,8 +1,8 @@
 import './xterm.css';
 import { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import { WebLinksAddon } from 'xterm-addon-web-links';
+import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import 'xterm/css/xterm.css';
 
 interface XTerminalProps {

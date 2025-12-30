@@ -23,7 +23,12 @@ const result = await Bun.build({
 });
 
 const copyRouteAssets = async (pkg: string, srcSubdir = '') => {
-  const src = path.join(process.cwd(), 'node_modules', pkg, srcSubdir);
+  let src;
+  if (pkg === 'pyodide') {
+    src = path.join(process.cwd(), 'public', 'pyodide');
+  } else {
+    src = path.join(process.cwd(), 'node_modules', pkg, srcSubdir);
+  }
   const dest = path.join(
     process.cwd(),
     'dist',
