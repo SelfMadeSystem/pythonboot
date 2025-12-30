@@ -347,21 +347,7 @@ async function setupNormalTracing(
   filename: string,
   interruptBuffer: { '0': number },
 ) {
-  await py.runPythonAsync(
-    `
-import sys
-
-sys.settrace(trace_cb)
-`,
-    {
-      globals: py.toPy({
-        ...py.globals.toJs(),
-      }),
-      locals: py.toPy({
-        trace_cb: normalTrace!(filename, interruptBuffer),
-      }),
-    },
-  );
+  py.pyimport('sys').settrace(normalTrace!(filename, interruptBuffer));
 }
 
 export async function runPythonCode(
@@ -394,21 +380,7 @@ async function setupDebugging(
   cb: DebugCallback,
   interruptBuffer: { '0': number },
 ) {
-  await py.runPythonAsync(
-    `
-import sys
-
-sys.settrace(trace_cb)
-`,
-    {
-      globals: py.toPy({
-        ...py.globals.toJs(),
-      }),
-      locals: py.toPy({
-        trace_cb: debugTrace!(cb, filename, interruptBuffer),
-      }),
-    },
-  );
+  py.pyimport('sys').settrace(debugTrace!(cb, filename, interruptBuffer));
 }
 
 async function clearDebugging(py: PyodideAPI) {
