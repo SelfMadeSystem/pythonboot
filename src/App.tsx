@@ -159,8 +159,7 @@ import sys, traceback
 exc = sys.last_exc
 tb = exc.__traceback__
 
-skip = 3 if isinstance(exc, SyntaxError) else 2
-for _ in range(skip):
+for _ in range(2):
     if tb and tb.tb_next:
         tb = tb.tb_next
 

@@ -27,6 +27,9 @@ An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor 
 - [ ] Share code snippets via URL
 - [ ] Theme support (light/dark mode, currently only dark mode is available)
 - [ ] Documentation
+- [ ] I18n
+  - [x] English
+  - [ ] French (requirement for use at UdeM)
 
 ## Known Problems and Limitations
 
