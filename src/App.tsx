@@ -2,7 +2,7 @@ import type * as m from 'monaco-editor';
 import './index.css';
 import { type HighlightRange, MonacoEditor } from './monaco/MonacoEditor';
 import { syncMonacoToPyodide } from './monaco/MonacoStore';
-import { createPyodide, debugPythonCode, runPythonCode } from './pyodide/PyEnv';
+import { createPyodide, debugPythonCode, NOTRACE_FILENAME, runPythonCode } from './pyodide/PyEnv';
 import {
   frameHighlightRange,
   syntaxErrorHighlightRange,
@@ -155,18 +155,37 @@ export function App() {
             .runPython(
               `
 import sys, traceback
+
 exc = sys.last_exc
 tb = exc.__traceback__
+
 skip = 3 if isinstance(exc, SyntaxError) else 2
 for _ in range(skip):
     if tb and tb.tb_next:
         tb = tb.tb_next
-fmt = traceback.format_exception(type(exc), exc, tb)
+
+# Remove any no-trace frames
+prev = None
+curr = tb
+while curr:
+    if curr.tb_frame.f_code.co_filename == '${NOTRACE_FILENAME}':
+        if prev is None:
+            tb = curr.tb_next
+        else:
+            prev.tb_next = curr.tb_next
+    else:
+        prev = curr
+    curr = curr.tb_next
+
+msg = traceback.format_exception(type(exc), exc, tb)
+
 while tb.tb_next:
     tb = tb.tb_next
-(fmt, tb, exc)
+
+(msg, tb, exc)
 `,
               {
+                filename: NOTRACE_FILENAME,
                 globals: pyodide.toPy({
                   ...pyodide.globals.toJs(),
                 }),

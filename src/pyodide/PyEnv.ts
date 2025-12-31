@@ -11,6 +11,7 @@ import type { RefObject } from 'react';
 import type { Terminal } from 'xterm';
 
 export const HOME = '/home/pyboot';
+export const NOTRACE_FILENAME = '<no-trace>';
 
 let pyodide: PyodideAPI | null = null;
 const pyodideCbs: ((pyodide: PyodideAPI) => void)[] = [];
@@ -51,12 +52,19 @@ async function runPySrcOrFetch(
   if (!pyodide) {
     throw new Error('Pyodide is not loaded.');
   }
+  options = {
+    globals: pyodide.toPy({
+      ...pyodide.globals.toJs(),
+    }),
+    filename: NOTRACE_FILENAME,
+    ...options,
+  };
   if (src.startsWith('/')) {
     const res = await fetch(src);
     const code = await res.text();
-    return pyodide.runPython(code, options);
+    return await pyodide.runPythonAsync(code, options);
   }
-  return pyodide.runPython(src, options);
+  return await pyodide.runPythonAsync(src, options);
 }
 
 export async function createPyodide(
@@ -255,43 +263,21 @@ async function setupPyodide(
 
   if ('Suspending' in WebAssembly) {
     // Supports async inputs
-    await runPySrcOrFetch(asyncInputsSrc, {
-      globals: py.toPy({
-        ...py.globals.toJs(),
-      }),
-    });
+    await runPySrcOrFetch(asyncInputsSrc);
   } else {
     // Warn user that async inputs and debugging won't work
-    await runPySrcOrFetch(warnJSPISrc, {
-      globals: py.toPy({
-        ...py.globals.toJs(),
-      }),
-    });
+    await runPySrcOrFetch(warnJSPISrc);
   }
 
-  await runPySrcOrFetch(syncInputsSrc, {
-    globals: py.toPy({
-      ...py.globals.toJs(),
-    }),
-  });
+  await runPySrcOrFetch(syncInputsSrc);
 
-  await runPySrcOrFetch(infoSrc, {
-    globals: py.toPy({
-      ...py.globals.toJs(),
-    }),
-  });
+  await runPySrcOrFetch(infoSrc);
 
-  setupHintingFunc = (await runPySrcOrFetch(astUtilsSrc, {
-    globals: py.toPy({
-      ...py.globals.toJs(),
-    }),
-  })) as (source: string) => HintingFunc;
+  setupHintingFunc = (await runPySrcOrFetch(astUtilsSrc)) as (
+    source: string,
+  ) => HintingFunc;
 
-  [normalTrace, debugTrace] = (await runPySrcOrFetch(traceSrc, {
-    globals: py.toPy({
-      ...py.globals.toJs(),
-    }),
-  })) as any; // can't be arsed to type this properly
+  [normalTrace, debugTrace] = (await runPySrcOrFetch(traceSrc)) as any; // can't be arsed to type this properly
 }
 
 type HintingFunc = (
@@ -333,6 +319,7 @@ def format_code(src: str) -> str:
 format_code
 `,
     {
+      filename: NOTRACE_FILENAME,
       globals: py.toPy({
         ...py.globals.toJs(),
       }),
