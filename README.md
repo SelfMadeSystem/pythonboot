@@ -30,6 +30,7 @@ An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor 
 
 ## Known Problems and Limitations
 
+- Since WASM JavaScript Promise Integration is not supported in all browsers yet, debugging and interactive terminal input won't work in some browsers (e.g. Safari). As of 2025-12-30, it is supported in the latest versions of Chromium-based browsers and behind the flag `javascript.options.wasm_js_promise_integration` in Firefox. You can check browser support on [WebAssembly.org](https://webassembly.org/features/#table-row-jspi) or [Can I use](https://caniuse.com/mdn-webassembly_jspi).
 - Mobile support probably won't be a thing due to Monaco Editor's limitations on mobile devices.
 - Variable inline hints aren't accurate with different scopes (e.g. inside functions or loops).
 - Any stdin input other than `input()` function will not work properly.
