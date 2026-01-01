@@ -23,7 +23,16 @@ import type { PyProxy } from 'pyodide/ffi';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Terminal } from 'xterm';
 
-export function App() {
+export function App({
+  onFloatDown,
+  floating,
+  setFloating,
+}: {
+  onFloatDown?: (e: React.MouseEvent) => void;
+  floating?: boolean;
+  setFloating?: (floating: boolean) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
   const [highlights, setHighlights] = useState<Record<string, HighlightRange>>(
     {},
@@ -236,7 +245,8 @@ while tb.tb_next:
 
   return (
     <div
-      className="relative flex min-h-screen flex-col"
+      ref={containerRef}
+      className="relative flex min-h-[100cqh] flex-col"
       style={{
         background: 'rgb(30, 30, 30)',
       }}
@@ -244,7 +254,7 @@ while tb.tb_next:
       <div
         className="relative overflow-hidden"
         style={{
-          height: `${split * 100}vh`,
+          height: `${split * 100}cqh`,
         }}
       >
         <MonacoEditor
@@ -254,6 +264,9 @@ while tb.tb_next:
           loadedValue={loadedValue}
           model={model}
           setModel={setModel}
+          onFloatDown={onFloatDown}
+          floating={floating}
+          setFloating={setFloating}
         />
 
         <div className="absolute top-2 right-2 z-10 flex gap-2">
@@ -304,7 +317,8 @@ while tb.tb_next:
             const startSplit = split;
             const onMouseMove = (e: MouseEvent) => {
               const deltaY = e.clientY - startY;
-              const newSplit = startSplit + deltaY / window.innerHeight;
+              const newSplit =
+                startSplit + deltaY / containerRef.current!.clientHeight;
               setSplit(Math.min(Math.max(newSplit, 0.1), 0.9));
             };
             const onMouseUp = () => {
@@ -319,7 +333,7 @@ while tb.tb_next:
       <div
         className="overflow-hidden"
         style={{
-          height: `${(1 - split) * 100}vh`,
+          height: `${(1 - split) * 100}cqh`,
         }}
       >
         <Views split={split} outTermRef={xtermRef} />

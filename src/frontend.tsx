@@ -4,7 +4,7 @@
  *
  * It is included in `src/index.html`.
  */
-import { App } from './App';
+import App from './FloatingApp';
 import { createRoot } from 'react-dom/client';
 
 function start() {

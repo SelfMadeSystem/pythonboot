@@ -5,15 +5,22 @@ import {
   waitForMonacoInstance,
 } from './MonacoStore';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export function MonacoTabs({
   model,
   setModel,
   editor,
+  onFloatDown,
+  floating,
+  setFloating,
 }: {
   model: m.editor.ITextModel | null;
   setModel: (model: m.editor.ITextModel) => void;
   editor: m.editor.IStandaloneCodeEditor | null;
+  onFloatDown?: (e: React.MouseEvent) => void;
+  floating?: boolean;
+  setFloating?: (floating: boolean) => void;
 }) {
   const [tabs, setTabs] = useState<
     { label: string; model: m.editor.ITextModel }[]
@@ -226,11 +233,41 @@ export function MonacoTabs({
   };
 
   return (
-    <div className="monaco-tabs relative flex w-full items-center border-b border-gray-300 text-white">
+    <div className="monaco-tabs relative isolate flex w-full items-center border-b border-gray-300 text-white">
+      {onFloatDown && (
+        <div
+          className="absolute inset-0 cursor-move"
+          onMouseDown={onFloatDown}
+        ></div>
+      )}
+      {setFloating && (
+        <button
+          className="z-10 cursor-pointer p-2 text-sm hover:bg-[#fff1]"
+          onClick={() => setFloating(!floating)}
+        >
+          {floating ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 fill-white"
+              viewBox="0 0 24 24"
+            >
+              <path d="M5,5H10V7H7V10H5V5M14,5H19V10H17V7H14V5M17,14H19V19H14V17H17V14M10,17V19H5V14H7V17H10Z" />
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 fill-white"
+              viewBox="0 0 24 24"
+            >
+              <path d="M18 18V20H4A2 2 0 0 1 2 18V8H4V18M22 6V14A2 2 0 0 1 20 16H8A2 2 0 0 1 6 14V6A2 2 0 0 1 8 4H20A2 2 0 0 1 22 6M20 6H8V14H20Z" />
+            </svg>
+          )}
+        </button>
+      )}
       {tabs.map((tab, index) => (
         <button
           key={index}
-          className={`cursor-pointer px-4 py-2 ${
+          className={`z-10 cursor-pointer px-4 py-2 ${
             model === tab.model ? 'bg-gray-800' : 'hover:bg-[#fff1]'
           }`}
           onClick={() => setModel(tab.model)}
@@ -239,7 +276,7 @@ export function MonacoTabs({
           {tab.label}
         </button>
       ))}
-      <button className="group cursor-pointer px-2" onClick={addTab}>
+      <button className="group z-10 cursor-pointer px-2" onClick={addTab}>
         <div className="rounded-full p-2 group-hover:bg-[#fff1]">
           <svg
             className="h-4 w-4"
@@ -252,35 +289,37 @@ export function MonacoTabs({
           </svg>
         </div>
       </button>
-      {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          className="absolute z-50 min-w-30 rounded border border-gray-700 bg-gray-900 text-sm shadow-lg"
-          style={{
-            top: contextMenu.mouseY,
-            left: contextMenu.mouseX,
-          }}
-        >
-          <button
-            className="block w-full cursor-pointer px-4 py-2 text-left hover:bg-gray-700"
-            onClick={handleRename}
+      {contextMenu &&
+        createPortal(
+          <div
+            ref={contextMenuRef}
+            className="absolute z-1000 min-w-30 rounded border border-gray-700 bg-gray-900 text-sm text-white shadow-lg"
+            style={{
+              top: contextMenu.mouseY,
+              left: contextMenu.mouseX,
+            }}
           >
-            Rename
-          </button>
-          <button
-            className="block w-full cursor-pointer px-4 py-2 text-left hover:bg-gray-700"
-            onClick={handleDuplicate}
-          >
-            Duplicate
-          </button>
-          <button
-            className="block w-full cursor-pointer px-4 py-2 text-left text-red-400 hover:bg-gray-700"
-            onClick={handleDelete}
-          >
-            Delete
-          </button>
-        </div>
-      )}
+            <button
+              className="block w-full cursor-pointer px-4 py-2 text-left hover:bg-gray-700"
+              onClick={handleRename}
+            >
+              Rename
+            </button>
+            <button
+              className="block w-full cursor-pointer px-4 py-2 text-left hover:bg-gray-700"
+              onClick={handleDuplicate}
+            >
+              Duplicate
+            </button>
+            <button
+              className="block w-full cursor-pointer px-4 py-2 text-left text-red-400 hover:bg-gray-700"
+              onClick={handleDelete}
+            >
+              Delete
+            </button>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

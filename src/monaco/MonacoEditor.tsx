@@ -29,6 +29,9 @@ export function MonacoEditor({
   loadedValue,
   model,
   setModel,
+  onFloatDown,
+  floating,
+  setFloating,
 }: {
   highlights: Record<string, HighlightRange>;
   errors: Record<string, ErrorType>;
@@ -36,6 +39,9 @@ export function MonacoEditor({
   loadedValue: unknown;
   model: m.editor.ITextModel | null;
   setModel: (model: m.editor.ITextModel) => void;
+  onFloatDown?: (e: React.MouseEvent) => void;
+  floating?: boolean;
+  setFloating?: (floating: boolean) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const monacoDivRef = useRef<HTMLDivElement>(null);
@@ -243,6 +249,9 @@ export function MonacoEditor({
           }
         }}
         editor={editor}
+        onFloatDown={onFloatDown}
+        floating={floating}
+        setFloating={setFloating}
       />
       <div className="h-full w-full" ref={monacoDivRef} />
     </div>
