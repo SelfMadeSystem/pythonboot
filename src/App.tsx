@@ -1,8 +1,17 @@
 import type * as m from 'monaco-editor';
 import './index.css';
-import { type HighlightRange, MonacoEditor } from './monaco/MonacoEditor';
+import {
+  type ErrorType,
+  type HighlightRange,
+  MonacoEditor,
+} from './monaco/MonacoEditor';
 import { syncMonacoToPyodide } from './monaco/MonacoStore';
-import { createPyodide, debugPythonCode, NOTRACE_FILENAME, runPythonCode } from './pyodide/PyEnv';
+import {
+  NOTRACE_FILENAME,
+  createPyodide,
+  debugPythonCode,
+  runPythonCode,
+} from './pyodide/PyEnv';
 import {
   frameHighlightRange,
   syntaxErrorHighlightRange,
@@ -16,20 +25,16 @@ import type { Terminal } from 'xterm';
 
 export function App() {
   const [model, setModel] = useState<m.editor.ITextModel | null>(null);
-  const [editorError, setEditorError] = useState<{
-    message: string;
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-  } | null>(null);
+  const [highlights, setHighlights] = useState<Record<string, HighlightRange>>(
+    {},
+  );
+  const [errors, setErrors] = useState<Record<string, ErrorType>>({});
   const [split, setSplit] = useState(0.5);
   const [pyodide, setPyodide] = useState<PyodideAPI | null>(null);
   const [debugCb, setDebugCb] = useState<((stopDebug?: true) => void) | null>(
     null,
   );
   const highlightRef = useRef<HighlightRange>(null);
-  const [highlight, setHighlight] = useState<HighlightRange | null>(null);
   const [frame, setFrame] = useState<PyProxy | null>(null);
   const [loadedValue, setLoadedValue] = useState<unknown>(SYM_NIL);
   const [running, setRunning] = useState(false);
@@ -58,7 +63,7 @@ export function App() {
       syncMonacoToPyodide();
 
       setRunning(true);
-      setEditorError(null); // Clear error before running
+      setErrors({});
 
       const code = model.getValue();
       const filename = model.uri.path || 'script.py';
@@ -132,7 +137,12 @@ export function App() {
 
               setFrame(frame.copy());
               setLoadedValue(() => loadedValue);
-              setHighlight((highlightRef.current = newHighlight));
+              if (model) {
+                setHighlights(prev => ({
+                  ...prev,
+                  [model.uri.toString()]: (highlightRef.current = newHighlight),
+                }));
+              }
               // return Promise.resolve();
               return new Promise<void | true>(resolve => {
                 setDebugCb(() => (stopDebug: undefined | true = undefined) => {
@@ -195,12 +205,19 @@ while tb.tb_next:
           const highlight = (syntaxErrorHighlightRange(err) ??
             frameHighlightRange(traceback.tb_frame))!;
 
-          setEditorError({
-            message: msg.join('') as string,
-            ...highlight,
-            startColumn: 'startColumn' in highlight ? highlight.startColumn : 1,
-            endColumn: 'endColumn' in highlight ? highlight.endColumn : 999999,
-          });
+          if (model) {
+            setErrors(prev => ({
+              ...prev,
+              [model.uri.toString()]: {
+                message: msg.join('') as string,
+                ...highlight,
+                startColumn:
+                  'startColumn' in highlight ? highlight.startColumn : 1,
+                endColumn:
+                  'endColumn' in highlight ? highlight.endColumn : 999999,
+              },
+            }));
+          }
           xterm.write(`\x1b[31m${normalizeNewlines(msg.join(''))}\x1b[0m`);
 
           traceback.destroy();
@@ -209,7 +226,7 @@ while tb.tb_next:
       } finally {
         setRunning(false);
         setDebugCb(null);
-        setHighlight((highlightRef.current = null));
+        setHighlights({});
         setFrame(null);
         setLoadedValue(SYM_NIL);
       }
@@ -231,12 +248,12 @@ while tb.tb_next:
         }}
       >
         <MonacoEditor
-          highlight={highlight}
+          highlights={highlights}
+          errors={errors}
           frame={frame}
           loadedValue={loadedValue}
           model={model}
           setModel={setModel}
-          error={editorError}
         />
 
         <div className="absolute top-2 right-2 z-10 flex gap-2">
@@ -246,7 +263,7 @@ while tb.tb_next:
               if (debugCb) {
                 debugCb(true);
                 setDebugCb(null);
-                setHighlight((highlightRef.current = null));
+                setHighlights({});
                 setFrame(null);
                 setLoadedValue(SYM_NIL);
                 return;

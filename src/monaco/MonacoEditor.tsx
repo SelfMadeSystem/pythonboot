@@ -7,39 +7,35 @@ import { SYM_NIL } from '@/utils';
 import type { PyProxy } from 'pyodide/ffi';
 import { useEffect, useRef, useState } from 'react';
 
-export type HighlightRange =
-  | {
-      startLine: number;
-      endLine: number;
-    }
-  | {
-      startLine: number;
-      startColumn: number;
-      endLine: number;
-      endColumn: number;
-    }
-  | null;
+export type HighlightRange = {
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+};
+
+export type ErrorType = {
+  message: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+};
 
 export function MonacoEditor({
-  highlight,
+  highlights,
+  errors,
   frame,
   loadedValue,
   model,
   setModel,
-  error,
 }: {
-  highlight: HighlightRange;
+  highlights: Record<string, HighlightRange>;
+  errors: Record<string, ErrorType>;
   frame: PyProxy | null;
   loadedValue: unknown;
   model: m.editor.ITextModel | null;
   setModel: (model: m.editor.ITextModel) => void;
-  error?: {
-    message: string;
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-  } | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const monacoDivRef = useRef<HTMLDivElement>(null);
@@ -86,6 +82,12 @@ export function MonacoEditor({
     });
   }, [editor]);
 
+  // Determine current highlight and error for the active model
+  const currentHighlight = model
+    ? (highlights[model.uri.toString()] ?? null)
+    : null;
+  const currentError = model ? (errors[model.uri.toString()] ?? null) : null;
+
   useEffect(() => {
     const monaco = getMonacoInstance();
     if (!editor || !model || !monaco) return;
@@ -94,23 +96,23 @@ export function MonacoEditor({
       pauseDecorationsRef.current.clear();
     }
 
-    if (highlight === null) return;
+    if (currentHighlight === null) return;
 
     pauseDecorationsRef.current = editor.createDecorationsCollection([
       {
         range: new monaco.Range(
-          highlight.startLine,
-          'startColumn' in highlight ? highlight.startColumn : 1,
-          highlight.endLine,
-          'endColumn' in highlight ? highlight.endColumn : 1,
+          currentHighlight.startLine,
+          currentHighlight.startColumn,
+          currentHighlight.endLine,
+          currentHighlight.endColumn,
         ),
         options: {
-          isWholeLine: !('startColumn' in highlight),
+          isWholeLine: !true,
           className: 'current-execution-line',
         },
       },
     ]);
-  }, [highlight, editor, model]);
+  }, [currentHighlight, editor, model]);
 
   const hoverProviderDisposable = useRef<{ dispose: () => void } | null>(null);
 
@@ -122,7 +124,7 @@ export function MonacoEditor({
     hoverProviderDisposable.current?.dispose();
 
     if (
-      highlight === null ||
+      currentHighlight === null ||
       loadedValue === SYM_NIL ||
       loadedValue === null ||
       loadedValue === undefined
@@ -137,21 +139,20 @@ export function MonacoEditor({
         provideHover: function (model, position) {
           // Check if position is within the highlight range
           const inRange =
-            position.lineNumber >= highlight.startLine &&
-            position.lineNumber <= highlight.endLine &&
-            (!('startColumn' in highlight) ||
-              ((position.lineNumber > highlight.startLine ||
-                position.column >= highlight.startColumn) &&
-                (position.lineNumber < highlight.endLine ||
-                  position.column <= highlight.endColumn)));
+            position.lineNumber >= currentHighlight.startLine &&
+            position.lineNumber <= currentHighlight.endLine &&
+            (position.lineNumber > currentHighlight.startLine ||
+              position.column >= currentHighlight.startColumn) &&
+            (position.lineNumber < currentHighlight.endLine ||
+              position.column <= currentHighlight.endColumn);
 
           if (inRange) {
             return {
               range: new monaco.Range(
-                highlight.startLine,
-                'startColumn' in highlight ? highlight.startColumn : 1,
-                highlight.endLine,
-                'endColumn' in highlight ? highlight.endColumn : 1,
+                currentHighlight.startLine,
+                currentHighlight.startColumn,
+                currentHighlight.endLine,
+                currentHighlight.endColumn,
               ),
               contents: [
                 {
@@ -168,7 +169,7 @@ export function MonacoEditor({
     return () => {
       hoverProviderDisposable.current?.dispose();
     };
-  }, [highlight, loadedValue, editor, model]);
+  }, [currentHighlight, loadedValue, editor, model]);
 
   const valueHintDecorationsRef =
     useRef<m.editor.IEditorDecorationsCollection | null>(null);
@@ -180,7 +181,7 @@ export function MonacoEditor({
     // Clear previous value hint decorations
     valueHintDecorationsRef.current?.clear();
 
-    if (highlight === null || frame === null) {
+    if (currentHighlight === null || frame === null) {
       return;
     }
 
@@ -210,26 +211,26 @@ export function MonacoEditor({
     }
 
     valueHintDecorationsRef.current = editor.createDecorationsCollection(hints);
-  }, [highlight, frame, editor, model]);
+  }, [currentHighlight, frame, editor, model]);
 
   useEffect(() => {
     const monaco = getMonacoInstance();
     if (!model || !monaco) return;
-    if (!error) {
+    if (!currentError) {
       monaco.editor.setModelMarkers(model, 'owner', []);
       return;
     }
     monaco.editor.setModelMarkers(model, 'owner', [
       {
         severity: monaco.MarkerSeverity.Error,
-        message: error.message,
-        startLineNumber: error.startLine,
-        startColumn: error.startColumn,
-        endLineNumber: error.endLine,
-        endColumn: error.endColumn,
+        message: currentError.message,
+        startLineNumber: currentError.startLine,
+        startColumn: currentError.startColumn,
+        endLineNumber: currentError.endLine,
+        endColumn: currentError.endColumn,
       },
     ]);
-  }, [error, model]);
+  }, [currentError, model]);
 
   return (
     <div className="flex h-full w-full flex-col" ref={containerRef}>
