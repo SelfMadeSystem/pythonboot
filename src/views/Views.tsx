@@ -20,7 +20,7 @@ export function Views({
         <div
           className={clsx(activeTab === 'output' || 'hidden', 'h-full w-full')}
         >
-          <XTerminal split={split} xtermRef={outTermRef} />
+          <XTerminal split={split} active={activeTab === 'output'} xtermRef={outTermRef} />
         </div>
         <div
           className={clsx(

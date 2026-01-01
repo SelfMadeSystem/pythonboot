@@ -7,10 +7,11 @@ import 'xterm/css/xterm.css';
 
 interface XTerminalProps {
   split: number;
+  active: boolean;
   xtermRef: React.RefObject<Terminal | null>;
 }
 
-export function XTerminal({ split, xtermRef }: XTerminalProps) {
+export function XTerminal({ split, active, xtermRef }: XTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const fitRef = useRef<FitAddon | null>(null);
 
@@ -38,7 +39,7 @@ export function XTerminal({ split, xtermRef }: XTerminalProps) {
     const fit = fitRef.current;
     if (!fit) return;
     fit.fit();
-  }, [split]);
+  }, [split, active]);
 
   return <div className="h-full w-full pt-0.5" ref={terminalRef} />;
 }
