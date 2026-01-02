@@ -72,7 +72,7 @@ export async function createPyodide(
 ): Promise<PyodideAPI> {
   if (!pyodide) {
     pyodide = await loadPyodide({
-      indexURL: `${window.location.origin}/pyodide/`,
+      indexURL: `${window.CDN_URL ?? window.location.origin}/pyodide/`,
       env: {
         HOME,
       },

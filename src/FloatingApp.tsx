@@ -64,11 +64,11 @@ export function FloatingApp() {
     <>
       <div
         className={
-          'pythonboot-app ' +
+          'pythonboot-app fixed ' +
           (visible
             ? floating
-              ? 'fixed z-1000 resize-none'
-              : 'h-screen w-screen'
+              ? 'z-1000 resize-none'
+              : 'inset-0 h-screen w-screen'
             : 'hidden')
         }
         style={floating ? { left, top, width, height } : {}}

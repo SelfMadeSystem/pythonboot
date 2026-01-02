@@ -5,7 +5,7 @@ import type { PyProxy } from 'pyodide/ffi';
  * Extracts a HighlightRange from a Python frame object.
  * Returns null if extraction is not possible.
  */
-export function frameHighlightRange(frame: PyProxy): HighlightRange {
+export function frameHighlightRange(frame: PyProxy): HighlightRange | null {
   if (!frame || !frame.f_code || typeof frame.f_lasti !== 'number') return null;
   const lasti = frame.f_lasti;
   const positions = [...frame.f_code.co_positions()];
@@ -30,7 +30,7 @@ export function frameHighlightRange(frame: PyProxy): HighlightRange {
  */
 export function syntaxErrorHighlightRange(
   syntaxError: PyProxy,
-): HighlightRange {
+): HighlightRange | null {
   if (
     !syntaxError ||
     !('lineno' in syntaxError) ||

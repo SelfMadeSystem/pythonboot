@@ -11,6 +11,7 @@ declare global {
   interface Window {
     CDN: boolean;
     MAIN: boolean;
+    CDN_URL?: string;
   }
 }
 
@@ -21,6 +22,11 @@ const scriptHost = new URL(scriptUrl).host;
 const pageHost = window.location.host;
 window.CDN = scriptHost !== pageHost;
 window.MAIN = !window.CDN;
+
+if (window.CDN) {
+  // If served from a different host, set the CDN_URL to the script's origin
+  window.CDN_URL = new URL(scriptUrl).origin;
+}
 
 function start() {
   const root = createRoot(

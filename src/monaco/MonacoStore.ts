@@ -2,18 +2,18 @@ import type * as m from 'monaco-editor';
 import { HOME, getPyodide } from '@/pyodide/PyEnv';
 import mLoader from '@monaco-editor/loader';
 
-mLoader.config({
-  paths: {
-    vs: `${window.location.origin}/monaco/vs`,
-  },
-});
-
 let monacoInstance: typeof m | null = null;
 let editorInstance: m.editor.IStandaloneCodeEditor | null = null;
 let monacoCbs: Array<(monaco: typeof m) => void> = [];
 let instanceCbs: Array<(editor: m.editor.IStandaloneCodeEditor) => void> = [];
 
 export async function createMonacoInstance(): Promise<typeof m> {
+  mLoader.config({
+    paths: {
+      vs: `${window.CDN_URL ?? window.location.origin}/monaco/vs`,
+    },
+  });
+
   if (!monacoInstance) {
     monacoInstance = await mLoader.init();
     for (const cb of monacoCbs) {
