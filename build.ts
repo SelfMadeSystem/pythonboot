@@ -15,6 +15,9 @@ const result = await Bun.build({
   outdir: path.join(process.cwd(), 'dist'),
   plugins: [plugin],
   minify: true,
+  naming: {
+    chunk: '[name].[ext]'
+  },
   target: 'browser',
   sourcemap: 'linked',
   define: {

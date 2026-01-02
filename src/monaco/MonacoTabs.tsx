@@ -4,9 +4,9 @@ import {
   waitForEditorInstance,
   waitForMonacoInstance,
 } from './MonacoStore';
+import { runGlobalPythonCode, waitForPyodide } from '@/pyodide/PyEnv';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { runGlobalPythonCode } from '@/pyodide/PyEnv';
 
 export function MonacoTabs({
   model,
@@ -102,6 +102,8 @@ export function MonacoTabs({
         // Parent hasn't fully loaded yet, so must set model on editor directly
         editor.setModel(loadedTabs[0]!.model);
         loadedModelsRef.current = true;
+
+        await waitForPyodide();
 
         // Run all the scripts in order to set up any globals
         for (const tab of loadedTabs) {
