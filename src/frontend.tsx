@@ -30,7 +30,13 @@ if (window.CDN) {
 
 function start() {
   const root = createRoot(
-    window.MAIN ? document.getElementById('root')! : document.body,
+    window.MAIN
+      ? document.getElementById('root')!
+      : (() => {
+          const container = document.createElement('div');
+          document.body.appendChild(container);
+          return container;
+        })(),
   );
   root.render(<App />);
 }

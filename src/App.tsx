@@ -126,7 +126,7 @@ export function App({
                   break;
               }
 
-              const newHighlight: HighlightRange = frameHighlightRange(frame);
+              const newHighlight = frameHighlightRange(frame);
 
               // if the new highlight is the same as the current one, just continue
               if (
@@ -149,7 +149,7 @@ export function App({
               if (model) {
                 setHighlights(prev => ({
                   ...prev,
-                  [model.uri.toString()]: (highlightRef.current = newHighlight),
+                  [model.uri.toString()]: (highlightRef.current = newHighlight!),
                 }));
               }
               // return Promise.resolve();
