@@ -355,6 +355,31 @@ export async function runPythonCode(
   });
 }
 
+export async function runGlobalPythonCode(
+  code: string,
+  filename: string,
+): Promise<void> {
+  const py = getPyodide();
+  if (!py) {
+    throw new Error('Pyodide is not loaded.');
+  }
+  const ogGlobals = py.globals.toJs();
+  const globals = py.globals;
+  await py.runPythonAsync(code, {
+    globals,
+    filename: HOME + filename,
+  });
+  // Assign any new globals back to py.globals and globalThis
+  const newGlobals = globals.toJs();
+  for (const key of Object.keys(newGlobals)) {
+    if (key in ogGlobals) continue;
+    if (key in globalThis) continue;
+    py.globals.set(key, globals.get(key));
+    // @ts-expect-error
+    globalThis[key] = newGlobals[key];
+  }
+}
+
 type DebugCallback = (
   frame: PyProxy,
   event: string,

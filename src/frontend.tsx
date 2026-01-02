@@ -7,8 +7,25 @@
 import App from './FloatingApp';
 import { createRoot } from 'react-dom/client';
 
+declare global {
+  interface Window {
+    CDN: boolean;
+    MAIN: boolean;
+  }
+}
+
+// Check if the script is being served from a different host than the page
+const scriptUrl =
+  import.meta?.url ?? (document.currentScript as HTMLScriptElement)?.src; // put .meta?. to avoid bundler polyfill
+const scriptHost = new URL(scriptUrl).host;
+const pageHost = window.location.host;
+window.CDN = scriptHost !== pageHost;
+window.MAIN = !window.CDN;
+
 function start() {
-  const root = createRoot(document.getElementById('root')!);
+  const root = createRoot(
+    window.MAIN ? document.getElementById('root')! : document.body,
+  );
   root.render(<App />);
 }
 

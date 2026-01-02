@@ -6,6 +6,7 @@ import {
 } from './MonacoStore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { runGlobalPythonCode } from '@/pyodide/PyEnv';
 
 export function MonacoTabs({
   model,
@@ -56,6 +57,60 @@ export function MonacoTabs({
 
   // Load from localstorage on mount
   useEffect(() => {
+    if (window.CDN) {
+      // Find any script with type="text/python" and load as tabs
+      const scripts = document.querySelectorAll(
+        'script[type="text/python"]',
+      ) as NodeListOf<HTMLScriptElement>;
+      if (scripts.length === 0) {
+        loadedModelsRef.current = true;
+        return;
+      }
+
+      const loadScripts = async () => {
+        const monaco = await waitForMonacoInstance();
+        const editor = await waitForEditorInstance();
+
+        const loadedTabs: { label: string; model: m.editor.ITextModel }[] = [];
+
+        for (let i = 0; i < scripts.length; i++) {
+          const script = scripts[i]!;
+          const src = script.getAttribute('src');
+          const label = src
+            ? src.split('/').pop() || `script-${i + 1}.py`
+            : `script-${i + 1}.py`;
+          const value =
+            script.textContent ||
+            (src &&
+              (await fetch(src)
+                .then(res => res.text())
+                .catch(e => {
+                  console.error('Failed to load script:', src, e);
+                  return '';
+                }))) ||
+            '';
+          const model = monaco.editor.createModel(
+            value,
+            'python',
+            monaco.Uri.file(label),
+          );
+          loadedTabs.push({ label, model });
+        }
+
+        setTabs(loadedTabs);
+        setModel(loadedTabs[0]!.model);
+        // Parent hasn't fully loaded yet, so must set model on editor directly
+        editor.setModel(loadedTabs[0]!.model);
+        loadedModelsRef.current = true;
+
+        // Run all the scripts in order to set up any globals
+        for (const tab of loadedTabs) {
+          await runGlobalPythonCode(tab.model.getValue(), tab.label);
+        }
+      };
+      loadScripts();
+      return;
+    }
     const loadTabs = async () => {
       const monaco = await waitForMonacoInstance();
       const editor = await waitForEditorInstance();
@@ -90,6 +145,7 @@ export function MonacoTabs({
 
   // Save to localstorage on tabs change
   useEffect(() => {
+    if (window.CDN) return; // Don't save when running from CDN
     const saveModels = () => {
       const toSave = tabs.map(tab => ({
         label: tab.label,
