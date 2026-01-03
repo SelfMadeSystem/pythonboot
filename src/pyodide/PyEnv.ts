@@ -4,6 +4,7 @@ import infoSrc from './info.py' with { type: 'text' };
 import syncInputsSrc from './syncInputs.py' with { type: 'text' };
 import traceSrc from './trace.py' with { type: 'text' };
 import warnJSPISrc from './warnJSPI.py' with { type: 'text' };
+import { waitForEditorInstance } from '@/monaco/MonacoStore';
 import { normalizeNewlines } from '@/utils';
 import { type PyodideAPI, loadPyodide } from 'pyodide';
 import type { PyProxy } from 'pyodide/ffi';
@@ -71,6 +72,11 @@ export async function createPyodide(
   xtermRef: RefObject<Terminal | null>,
 ): Promise<PyodideAPI> {
   if (!pyodide) {
+    // if in MAIN, wait for monaco to load first
+    if (window.MAIN) {
+      await waitForEditorInstance();
+    }
+
     pyodide = await loadPyodide({
       indexURL: `${window.CDN_URL ?? window.location.origin}/pyodide/`,
       env: {
