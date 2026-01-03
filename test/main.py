@@ -9,8 +9,8 @@ PLAYER_O = "O"
 
 import random
 
-IMG_XS = [f"/img/x{i}.png" for i in range(1, 10)]
-IMG_OS = [f"/img/o{i}.png" for i in range(1, 10)]
+IMG_XS = [f"/img/x{i}.png" for i in range(0, 10)]
+IMG_OS = [f"/img/o{i}.png" for i in range(0, 10)]
 
 # Store per-cell image/transform info
 cell_img = [None] * 9
