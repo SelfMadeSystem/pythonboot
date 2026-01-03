@@ -1,15 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Document</title>
   <script type="module" src="https://pythonboot.shoghisimon.ca/index.js"></script>
-  <link rel="stylesheet" href="https://pythonboot.shoghisimon.ca/index.css">
+  <link rel="stylesheet" href="https://pythonboot.shoghisimon.ca/index.css" />
   <script type="text/python" src="main.py"></script>
 </head>
+
 <body>
-  <button id="myButton">Click Me</button>
-  <div id="output"></div>
+  <div id="quiz">
+    <div id="question">Press Start to begin!</div>
+    <input type="number" id="answer" placeholder="Your answer" />
+    <button id="submitAnswer">Submit Answer</button>
+    <button id="startQuiz">Start Quiz</button>
+    <div id="feedback"></div>
+    <div id="score">Score: 0</div>
+  </div>
 </body>
+
 </html>
