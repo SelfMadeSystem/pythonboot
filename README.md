@@ -26,6 +26,8 @@ An in-browser Python interpreter and debugger powered by Pyodide, Monaco Editor 
 - [ ] Save and load code snippets
 - [ ] Share code snippets via URL
 - [ ] Theme support (light/dark mode, currently only dark mode is available)
+- [x] "CDN" mode
+  - Loads pythonBoot from a CDN and acts as a library instead of a standalone app
 - [ ] Documentation
 - [ ] I18n
   - [x] English

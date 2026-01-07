@@ -351,7 +351,7 @@ export function MonacoTabs({
         createPortal(
           <div
             ref={contextMenuRef}
-            className="absolute z-1000 min-w-30 rounded border border-gray-700 bg-gray-900 text-sm text-white shadow-lg"
+            className="pythonboot-app absolute z-1000 min-w-30 rounded border border-gray-700 bg-gray-900 text-sm text-white shadow-lg"
             style={{
               top: contextMenu.mouseY,
               left: contextMenu.mouseX,
