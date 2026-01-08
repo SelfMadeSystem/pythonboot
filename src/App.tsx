@@ -97,12 +97,9 @@ export function App({
 
               let loadedValue: unknown = SYM_NIL;
 
-              const opcode = code[lasti];
+              const opcode = frame.f_code.co_code[lasti];
               const opnameArr = pyodide.pyimport('dis').opname;
-              const opname =
-                typeof opcode === 'number' && Array.isArray(opnameArr)
-                  ? opnameArr[opcode]
-                  : undefined;
+              const opname = opnameArr[opcode];
 
               switch (opname) {
                 // opcodes we don't need to handle
@@ -149,7 +146,8 @@ export function App({
               if (model) {
                 setHighlights(prev => ({
                   ...prev,
-                  [model.uri.toString()]: (highlightRef.current = newHighlight!),
+                  [model.uri.toString()]: (highlightRef.current =
+                    newHighlight!),
                 }));
               }
               // return Promise.resolve();
