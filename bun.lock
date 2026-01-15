@@ -11,7 +11,7 @@
         "bun-plugin-tailwind": "^0.1.2",
         "clsx": "^2.1.1",
         "monaco-editor": "^0.55.1",
-        "pyodide": "^0.29.0",
+        "pyodide": "0.29.1",
         "react": "^19",
         "react-dom": "^19",
         "tailwindcss": "^4.1.11",
@@ -360,7 +360,7 @@
 
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
-    "pyodide": ["pyodide@0.29.0", "", { "dependencies": { "@types/emscripten": "^1.41.4", "ws": "^8.5.0" } }, "sha512-ObIvsTmcrxAWKg+FT1GjfSdDmQc5CabnYe/nn5BCuhr9BVVITeQ24DBdZuG5B2tIiAZ9YonBpnDB7cmHZyd2Rw=="],
+    "pyodide": ["pyodide@0.29.1", "", { "dependencies": { "@types/emscripten": "^1.41.4", "ws": "^8.5.0" } }, "sha512-mpk9jtkiM7Ugh1r9P9dbR8vKrmf0lED32hBZq+Fn1kkkBiUoOjSsJEWcyprugICpiFpIXpUOf80ZrvFXkQMk2g=="],
 
     "react": ["react@19.2.3", "", {}, "sha512-Ku/hhYbVjOQnXDZFv2+RibmLFGwFdeeKHFcOTlrt7xplBnya5OGn/hIRDsqDiSUcfORsDC7MPxwork8jBwsIWA=="],
 
